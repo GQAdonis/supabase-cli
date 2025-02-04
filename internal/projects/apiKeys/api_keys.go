@@ -3,6 +3,7 @@ package apiKeys
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/go-errors/errors"
@@ -18,18 +19,22 @@ func Run(ctx context.Context, projectRef string, fsys afero.Fs) error {
 		return err
 	}
 
-	table := `|NAME|KEY VALUE|
+	if utils.OutputFormat.Value == utils.OutputPretty {
+		table := `|NAME|KEY VALUE|
 |-|-|
 `
-	for _, entry := range keys {
-		table += fmt.Sprintf("|`%s`|`%s`|\n", strings.ReplaceAll(entry.Name, "|", "\\|"), entry.ApiKey)
+		for _, entry := range keys {
+			table += fmt.Sprintf("|`%s`|`%s`|\n", strings.ReplaceAll(entry.Name, "|", "\\|"), entry.ApiKey)
+		}
+
+		return list.RenderTable(table)
 	}
 
-	return list.RenderTable(table)
+	return utils.EncodeOutput(utils.OutputFormat.Value, os.Stdout, keys)
 }
 
 func RunGetApiKeys(ctx context.Context, projectRef string) ([]api.ApiKeyResponse, error) {
-	resp, err := utils.GetSupabase().V1GetProjectApiKeysWithResponse(ctx, projectRef)
+	resp, err := utils.GetSupabase().V1GetProjectApiKeysWithResponse(ctx, projectRef, &api.V1GetProjectApiKeysParams{})
 	if err != nil {
 		return nil, errors.Errorf("failed to get api keys: %w", err)
 	}

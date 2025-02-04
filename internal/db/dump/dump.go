@@ -82,6 +82,7 @@ func dumpData(ctx context.Context, config pgconn.Config, schema, excludeTable []
 		"graphql",
 		"graphql_public",
 		// "net",
+		// "pgmq",
 		// "pgsodium",
 		// "pgsodium_masks",
 		"pgtle",
@@ -100,6 +101,7 @@ func dumpData(ctx context.Context, config pgconn.Config, schema, excludeTable []
 		// "storage",
 		// "supabase_functions",
 		"supabase_migrations",
+		// TODO: Remove in a few version in favor of _supabase internal db
 		"_analytics",
 		"_realtime",
 		"_supavisor",

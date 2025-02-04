@@ -25,7 +25,7 @@ func NewDockerBundler(fsys afero.Fs) function.EszipBundler {
 	return &dockerBundler{fsys: fsys}
 }
 
-func (b *dockerBundler) Bundle(ctx context.Context, entrypoint string, importMap string, output io.Writer) error {
+func (b *dockerBundler) Bundle(ctx context.Context, entrypoint string, importMap string, staticFiles []string, output io.Writer) error {
 	// Create temp directory to store generated eszip
 	slug := filepath.Base(filepath.Dir(entrypoint))
 	fmt.Fprintln(os.Stderr, "Bundling Function:", utils.Bold(slug))
@@ -44,8 +44,7 @@ func (b *dockerBundler) Bundle(ctx context.Context, entrypoint string, importMap
 		}
 	}()
 	// Create bind mounts
-	hostEntrypointDir := filepath.Dir(entrypoint)
-	binds, err := GetBindMounts(cwd, utils.FunctionsDir, hostOutputDir, hostEntrypointDir, importMap, b.fsys)
+	binds, err := GetBindMounts(cwd, utils.FunctionsDir, hostOutputDir, entrypoint, importMap, b.fsys)
 	if err != nil {
 		return err
 	}
@@ -55,15 +54,23 @@ func (b *dockerBundler) Bundle(ctx context.Context, entrypoint string, importMap
 	if len(importMap) > 0 {
 		cmd = append(cmd, "--import-map", utils.ToDockerPath(importMap))
 	}
+	for _, staticFile := range staticFiles {
+		cmd = append(cmd, "--static", utils.ToDockerPath(staticFile))
+	}
 	if viper.GetBool("DEBUG") {
 		cmd = append(cmd, "--verbose")
+	}
+
+	env := []string{}
+	if custom_registry := os.Getenv("NPM_CONFIG_REGISTRY"); custom_registry != "" {
+		env = append(env, "NPM_CONFIG_REGISTRY="+custom_registry)
 	}
 	// Run bundle
 	if err := utils.DockerRunOnceWithConfig(
 		ctx,
 		container.Config{
 			Image:      utils.Config.EdgeRuntime.Image,
-			Env:        []string{},
+			Env:        env,
 			Cmd:        cmd,
 			WorkingDir: utils.ToDockerPath(cwd),
 		},
@@ -86,7 +93,7 @@ func (b *dockerBundler) Bundle(ctx context.Context, entrypoint string, importMap
 	return function.Compress(eszipBytes, output)
 }
 
-func GetBindMounts(cwd, hostFuncDir, hostOutputDir, hostEntrypointDir, hostImportMapPath string, fsys afero.Fs) ([]string, error) {
+func GetBindMounts(cwd, hostFuncDir, hostOutputDir, hostEntrypointPath, hostImportMapPath string, fsys afero.Fs) ([]string, error) {
 	sep := string(filepath.Separator)
 	// Docker requires all host paths to be absolute
 	if !filepath.IsAbs(hostFuncDir) {
@@ -116,6 +123,7 @@ func GetBindMounts(cwd, hostFuncDir, hostOutputDir, hostEntrypointDir, hostImpor
 		}
 	}
 	// Allow entrypoints outside the functions directory
+	hostEntrypointDir := filepath.Dir(hostEntrypointPath)
 	if len(hostEntrypointDir) > 0 {
 		if !filepath.IsAbs(hostEntrypointDir) {
 			hostEntrypointDir = filepath.Join(cwd, hostEntrypointDir)

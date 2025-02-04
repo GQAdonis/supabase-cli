@@ -34,42 +34,21 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-func suggestUpdateCmd(serviceImages map[string]string) string {
-	cmd := fmt.Sprintln(utils.Yellow("WARNING:"), "You are running different service versions locally than your linked project:")
-	for k, v := range serviceImages {
-		cmd += fmt.Sprintf("%s => %s\n", k, v)
-	}
-	cmd += fmt.Sprintf("Run %s to update them.", utils.Aqua("supabase link"))
-	return cmd
-}
-
 func Run(ctx context.Context, fsys afero.Fs, excludedContainers []string, ignoreHealthCheck bool) error {
 	// Sanity checks.
 	{
-		if err := utils.LoadConfigFS(fsys); err != nil {
+		if err := flags.LoadConfig(fsys); err != nil {
 			return err
 		}
 		if err := utils.AssertSupabaseDbIsRunning(); err == nil {
 			fmt.Fprintln(os.Stderr, utils.Aqua("supabase start")+" is already running.")
-			utils.CmdSuggestion = fmt.Sprintf("Run %s to show status of local Supabase containers.", utils.Aqua("supabase status"))
-			return nil
+			names := status.CustomName{}
+			return status.Run(ctx, names, utils.OutputPretty, fsys)
 		} else if !errors.Is(err, utils.ErrNotRunning) {
 			return err
 		}
-		if _, err := utils.LoadAccessTokenFS(fsys); err == nil {
-			if ref, err := flags.LoadProjectRef(fsys); err == nil {
-				local := services.GetServiceImages()
-				remote := services.GetRemoteImages(ctx, ref)
-				for _, image := range local {
-					parts := strings.Split(image, ":")
-					if version, ok := remote[image]; ok && version == parts[1] {
-						delete(remote, image)
-					}
-				}
-				if len(remote) > 0 {
-					fmt.Fprintln(os.Stderr, suggestUpdateCmd(remote))
-				}
-			}
+		if err := flags.LoadProjectRef(fsys); err == nil {
+			_ = services.CheckVersions(ctx, fsys)
 		}
 	}
 
@@ -86,7 +65,7 @@ func Run(ctx context.Context, fsys afero.Fs, excludedContainers []string, ignore
 		if ignoreHealthCheck && start.IsUnhealthyError(err) {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
-			if err := utils.DockerRemoveAll(context.Background(), os.Stderr); err != nil {
+			if err := utils.DockerRemoveAll(context.Background(), os.Stderr, utils.Config.ProjectId); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
 			return err
@@ -183,18 +162,21 @@ func run(p utils.Program, ctx context.Context, fsys afero.Fs, excludedContainers
 	// Start Postgres.
 	w := utils.StatusWriter{Program: p}
 	if dbConfig.Host == utils.DbId {
-		if err := start.StartDatabase(ctx, fsys, w, options...); err != nil {
+		if err := start.StartDatabase(ctx, "", fsys, w, options...); err != nil {
 			return err
 		}
 	}
 
 	var started []string
+	var isStorageEnabled = utils.Config.Storage.Enabled && !isContainerExcluded(utils.Config.Storage.Image, excluded)
+	var isImgProxyEnabled = utils.Config.Storage.ImageTransformation != nil &&
+		utils.Config.Storage.ImageTransformation.Enabled && !isContainerExcluded(utils.Config.Storage.ImgProxyImage, excluded)
 	p.Send(utils.StatusMsg("Starting containers..."))
 
 	// Start Logflare
 	if utils.Config.Analytics.Enabled && !isContainerExcluded(utils.Config.Analytics.Image, excluded) {
 		env := []string{
-			"DB_DATABASE=" + dbConfig.Database,
+			"DB_DATABASE=_supabase",
 			"DB_HOSTNAME=" + dbConfig.Host,
 			fmt.Sprintf("DB_PORT=%d", dbConfig.Port),
 			"DB_SCHEMA=_analytics",
@@ -227,7 +209,7 @@ func run(p utils.Program, ctx context.Context, fsys afero.Fs, excludedContainers
 			)
 		case config.LogflarePostgres:
 			env = append(env,
-				fmt.Sprintf("POSTGRES_BACKEND_URL=postgresql://%s:%s@%s:%d/%s", dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Database),
+				fmt.Sprintf("POSTGRES_BACKEND_URL=postgresql://%s:%s@%s:%d/%s", dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, "_supabase"),
 				"POSTGRES_BACKEND_SCHEMA=_analytics",
 			)
 		}
@@ -484,15 +466,11 @@ EOF
 			fmt.Sprintf("GOTRUE_EXTERNAL_EMAIL_ENABLED=%v", utils.Config.Auth.Email.EnableSignup),
 			fmt.Sprintf("GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED=%v", utils.Config.Auth.Email.DoubleConfirmChanges),
 			fmt.Sprintf("GOTRUE_MAILER_AUTOCONFIRM=%v", !utils.Config.Auth.Email.EnableConfirmations),
+			fmt.Sprintf("GOTRUE_MAILER_OTP_LENGTH=%v", utils.Config.Auth.Email.OtpLength),
+			fmt.Sprintf("GOTRUE_MAILER_OTP_EXP=%v", utils.Config.Auth.Email.OtpExpiry),
 
 			fmt.Sprintf("GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED=%v", utils.Config.Auth.EnableAnonymousSignIns),
 
-			fmt.Sprintf("GOTRUE_SMTP_HOST=%s", utils.Config.Auth.Email.Smtp.Host),
-			fmt.Sprintf("GOTRUE_SMTP_PORT=%d", utils.Config.Auth.Email.Smtp.Port),
-			fmt.Sprintf("GOTRUE_SMTP_USER=%s", utils.Config.Auth.Email.Smtp.User),
-			fmt.Sprintf("GOTRUE_SMTP_PASS=%s", utils.Config.Auth.Email.Smtp.Pass),
-			fmt.Sprintf("GOTRUE_SMTP_ADMIN_EMAIL=%s", utils.Config.Auth.Email.Smtp.AdminEmail),
-			fmt.Sprintf("GOTRUE_SMTP_SENDER_NAME=%s", utils.Config.Auth.Email.Smtp.SenderName),
 			fmt.Sprintf("GOTRUE_SMTP_MAX_FREQUENCY=%v", utils.Config.Auth.Email.MaxFrequency),
 
 			"GOTRUE_MAILER_URLPATHS_INVITE=" + utils.GetApiUrl("/auth/v1/verify"),
@@ -509,6 +487,8 @@ EOF
 			fmt.Sprintf("GOTRUE_SMS_TEMPLATE=%v", utils.Config.Auth.Sms.Template),
 			"GOTRUE_SMS_TEST_OTP=" + testOTP.String(),
 
+			fmt.Sprintf("GOTRUE_PASSWORD_MIN_LENGTH=%v", utils.Config.Auth.MinimumPasswordLength),
+			fmt.Sprintf("GOTRUE_PASSWORD_REQUIRED_CHARACTERS=%v", utils.Config.Auth.PasswordRequirements.ToChar()),
 			fmt.Sprintf("GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED=%v", utils.Config.Auth.EnableRefreshTokenRotation),
 			fmt.Sprintf("GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL=%v", utils.Config.Auth.RefreshTokenReuseInterval),
 			fmt.Sprintf("GOTRUE_SECURITY_MANUAL_LINKING_ENABLED=%v", utils.Config.Auth.EnableManualLinking),
@@ -517,13 +497,32 @@ EOF
 			fmt.Sprintf("GOTRUE_MFA_PHONE_VERIFY_ENABLED=%v", utils.Config.Auth.MFA.Phone.VerifyEnabled),
 			fmt.Sprintf("GOTRUE_MFA_TOTP_ENROLL_ENABLED=%v", utils.Config.Auth.MFA.TOTP.EnrollEnabled),
 			fmt.Sprintf("GOTRUE_MFA_TOTP_VERIFY_ENABLED=%v", utils.Config.Auth.MFA.TOTP.VerifyEnabled),
+			fmt.Sprintf("GOTRUE_MFA_WEB_AUTHN_ENROLL_ENABLED=%v", utils.Config.Auth.MFA.WebAuthn.EnrollEnabled),
+			fmt.Sprintf("GOTRUE_MFA_WEB_AUTHN_VERIFY_ENABLED=%v", utils.Config.Auth.MFA.WebAuthn.VerifyEnabled),
 			fmt.Sprintf("GOTRUE_MFA_MAX_ENROLLED_FACTORS=%v", utils.Config.Auth.MFA.MaxEnrolledFactors),
+		}
+
+		if utils.Config.Auth.Email.Smtp != nil && utils.Config.Auth.Email.Smtp.IsEnabled() {
+			env = append(env,
+				fmt.Sprintf("GOTRUE_SMTP_HOST=%s", utils.Config.Auth.Email.Smtp.Host),
+				fmt.Sprintf("GOTRUE_SMTP_PORT=%d", utils.Config.Auth.Email.Smtp.Port),
+				fmt.Sprintf("GOTRUE_SMTP_USER=%s", utils.Config.Auth.Email.Smtp.User),
+				fmt.Sprintf("GOTRUE_SMTP_PASS=%s", utils.Config.Auth.Email.Smtp.Pass.Value),
+				fmt.Sprintf("GOTRUE_SMTP_ADMIN_EMAIL=%s", utils.Config.Auth.Email.Smtp.AdminEmail),
+				fmt.Sprintf("GOTRUE_SMTP_SENDER_NAME=%s", utils.Config.Auth.Email.Smtp.SenderName),
+			)
+		} else if utils.Config.Inbucket.Enabled {
+			env = append(env,
+				"GOTRUE_SMTP_HOST="+utils.InbucketId,
+				"GOTRUE_SMTP_PORT=2500",
+				fmt.Sprintf("GOTRUE_SMTP_ADMIN_EMAIL=%s", utils.Config.Inbucket.AdminEmail),
+				fmt.Sprintf("GOTRUE_SMTP_SENDER_NAME=%s", utils.Config.Inbucket.SenderName),
+			)
 		}
 
 		if utils.Config.Auth.Sessions.Timebox > 0 {
 			env = append(env, fmt.Sprintf("GOTRUE_SESSIONS_TIMEBOX=%v", utils.Config.Auth.Sessions.Timebox))
 		}
-
 		if utils.Config.Auth.Sessions.InactivityTimeout > 0 {
 			env = append(env, fmt.Sprintf("GOTRUE_SESSIONS_INACTIVITY_TIMEOUT=%v", utils.Config.Auth.Sessions.InactivityTimeout))
 		}
@@ -537,101 +536,96 @@ EOF
 					id+filepath.Ext(tmpl.ContentPath),
 				))
 			}
-			if len(tmpl.Subject) > 0 {
+			if tmpl.Subject != nil {
 				env = append(env, fmt.Sprintf("GOTRUE_MAILER_SUBJECTS_%s=%s",
 					strings.ToUpper(id),
-					tmpl.Subject,
+					*tmpl.Subject,
 				))
 			}
 		}
 
-		if utils.Config.Auth.Sms.Twilio.Enabled {
+		switch {
+		case utils.Config.Auth.Sms.Twilio.Enabled:
 			env = append(
 				env,
 				"GOTRUE_SMS_PROVIDER=twilio",
 				"GOTRUE_SMS_TWILIO_ACCOUNT_SID="+utils.Config.Auth.Sms.Twilio.AccountSid,
-				"GOTRUE_SMS_TWILIO_AUTH_TOKEN="+utils.Config.Auth.Sms.Twilio.AuthToken,
+				"GOTRUE_SMS_TWILIO_AUTH_TOKEN="+utils.Config.Auth.Sms.Twilio.AuthToken.Value,
 				"GOTRUE_SMS_TWILIO_MESSAGE_SERVICE_SID="+utils.Config.Auth.Sms.Twilio.MessageServiceSid,
 			)
-		}
-		if utils.Config.Auth.Sms.TwilioVerify.Enabled {
+		case utils.Config.Auth.Sms.TwilioVerify.Enabled:
 			env = append(
 				env,
 				"GOTRUE_SMS_PROVIDER=twilio_verify",
 				"GOTRUE_SMS_TWILIO_VERIFY_ACCOUNT_SID="+utils.Config.Auth.Sms.TwilioVerify.AccountSid,
-				"GOTRUE_SMS_TWILIO_VERIFY_AUTH_TOKEN="+utils.Config.Auth.Sms.TwilioVerify.AuthToken,
+				"GOTRUE_SMS_TWILIO_VERIFY_AUTH_TOKEN="+utils.Config.Auth.Sms.TwilioVerify.AuthToken.Value,
 				"GOTRUE_SMS_TWILIO_VERIFY_MESSAGE_SERVICE_SID="+utils.Config.Auth.Sms.TwilioVerify.MessageServiceSid,
 			)
-		}
-		if utils.Config.Auth.Sms.Messagebird.Enabled {
+		case utils.Config.Auth.Sms.Messagebird.Enabled:
 			env = append(
 				env,
 				"GOTRUE_SMS_PROVIDER=messagebird",
-				"GOTRUE_SMS_MESSAGEBIRD_ACCESS_KEY="+utils.Config.Auth.Sms.Messagebird.AccessKey,
+				"GOTRUE_SMS_MESSAGEBIRD_ACCESS_KEY="+utils.Config.Auth.Sms.Messagebird.AccessKey.Value,
 				"GOTRUE_SMS_MESSAGEBIRD_ORIGINATOR="+utils.Config.Auth.Sms.Messagebird.Originator,
 			)
-		}
-		if utils.Config.Auth.Sms.Textlocal.Enabled {
+		case utils.Config.Auth.Sms.Textlocal.Enabled:
 			env = append(
 				env,
 				"GOTRUE_SMS_PROVIDER=textlocal",
-				"GOTRUE_SMS_TEXTLOCAL_API_KEY="+utils.Config.Auth.Sms.Textlocal.ApiKey,
+				"GOTRUE_SMS_TEXTLOCAL_API_KEY="+utils.Config.Auth.Sms.Textlocal.ApiKey.Value,
 				"GOTRUE_SMS_TEXTLOCAL_SENDER="+utils.Config.Auth.Sms.Textlocal.Sender,
 			)
-		}
-		if utils.Config.Auth.Sms.Vonage.Enabled {
+		case utils.Config.Auth.Sms.Vonage.Enabled:
 			env = append(
 				env,
 				"GOTRUE_SMS_PROVIDER=vonage",
 				"GOTRUE_SMS_VONAGE_API_KEY="+utils.Config.Auth.Sms.Vonage.ApiKey,
-				"GOTRUE_SMS_VONAGE_API_SECRET="+utils.Config.Auth.Sms.Vonage.ApiSecret,
+				"GOTRUE_SMS_VONAGE_API_SECRET="+utils.Config.Auth.Sms.Vonage.ApiSecret.Value,
 				"GOTRUE_SMS_VONAGE_FROM="+utils.Config.Auth.Sms.Vonage.From,
 			)
 		}
-		if utils.Config.Auth.Hook.MFAVerificationAttempt.Enabled {
+
+		if hook := utils.Config.Auth.Hook.MFAVerificationAttempt; hook != nil && hook.Enabled {
 			env = append(
 				env,
 				"GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_ENABLED=true",
-				"GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_URI="+utils.Config.Auth.Hook.MFAVerificationAttempt.URI,
-				"GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_SECRETS="+utils.Config.Auth.Hook.MFAVerificationAttempt.Secrets,
+				"GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_URI="+hook.URI,
+				"GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_SECRETS="+hook.Secrets.Value,
 			)
 		}
-
-		if utils.Config.Auth.Hook.PasswordVerificationAttempt.Enabled {
+		if hook := utils.Config.Auth.Hook.PasswordVerificationAttempt; hook != nil && hook.Enabled {
 			env = append(
 				env,
 				"GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_ENABLED=true",
-				"GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_URI="+utils.Config.Auth.Hook.PasswordVerificationAttempt.URI,
-				"GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_SECRETS="+utils.Config.Auth.Hook.PasswordVerificationAttempt.Secrets,
+				"GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_URI="+hook.URI,
+				"GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_SECRETS="+hook.Secrets.Value,
 			)
 		}
-
-		if utils.Config.Auth.Hook.CustomAccessToken.Enabled {
+		if hook := utils.Config.Auth.Hook.CustomAccessToken; hook != nil && hook.Enabled {
 			env = append(
 				env,
 				"GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_ENABLED=true",
-				"GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_URI="+utils.Config.Auth.Hook.CustomAccessToken.URI,
-				"GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_SECRETS="+utils.Config.Auth.Hook.CustomAccessToken.Secrets,
+				"GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_URI="+hook.URI,
+				"GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_SECRETS="+hook.Secrets.Value,
 			)
 		}
-
-		if utils.Config.Auth.Hook.SendSMS.Enabled {
+		if hook := utils.Config.Auth.Hook.SendSMS; hook != nil && hook.Enabled {
 			env = append(
 				env,
 				"GOTRUE_HOOK_SEND_SMS_ENABLED=true",
-				"GOTRUE_HOOK_SEND_SMS_URI="+utils.Config.Auth.Hook.SendSMS.URI,
-				"GOTRUE_HOOK_SEND_SMS_SECRETS="+utils.Config.Auth.Hook.SendSMS.Secrets,
+				"GOTRUE_HOOK_SEND_SMS_URI="+hook.URI,
+				"GOTRUE_HOOK_SEND_SMS_SECRETS="+hook.Secrets.Value,
 			)
 		}
-
-		if utils.Config.Auth.Hook.SendEmail.Enabled {
+		if hook := utils.Config.Auth.Hook.SendEmail; hook != nil && hook.Enabled {
 			env = append(
 				env,
 				"GOTRUE_HOOK_SEND_EMAIL_ENABLED=true",
-				"GOTRUE_HOOK_SEND_EMAIL_URI="+utils.Config.Auth.Hook.SendEmail.URI,
-				"GOTRUE_HOOK_SEND_EMAIL_SECRETS="+utils.Config.Auth.Hook.SendEmail.Secrets,
+				"GOTRUE_HOOK_SEND_EMAIL_URI="+hook.URI,
+				"GOTRUE_HOOK_SEND_EMAIL_SECRETS="+hook.Secrets.Value,
 			)
 		}
+
 		if utils.Config.Auth.MFA.Phone.EnrollEnabled || utils.Config.Auth.MFA.Phone.VerifyEnabled {
 			env = append(
 				env,
@@ -646,24 +640,18 @@ EOF
 				env,
 				fmt.Sprintf("GOTRUE_EXTERNAL_%s_ENABLED=%v", strings.ToUpper(name), config.Enabled),
 				fmt.Sprintf("GOTRUE_EXTERNAL_%s_CLIENT_ID=%s", strings.ToUpper(name), config.ClientId),
-				fmt.Sprintf("GOTRUE_EXTERNAL_%s_SECRET=%s", strings.ToUpper(name), config.Secret),
+				fmt.Sprintf("GOTRUE_EXTERNAL_%s_SECRET=%s", strings.ToUpper(name), config.Secret.Value),
 				fmt.Sprintf("GOTRUE_EXTERNAL_%s_SKIP_NONCE_CHECK=%t", strings.ToUpper(name), config.SkipNonceCheck),
 			)
 
-			if config.RedirectUri != "" {
-				env = append(env,
-					fmt.Sprintf("GOTRUE_EXTERNAL_%s_REDIRECT_URI=%s", strings.ToUpper(name), config.RedirectUri),
-				)
-			} else {
-				env = append(env,
-					fmt.Sprintf("GOTRUE_EXTERNAL_%s_REDIRECT_URI=%s", strings.ToUpper(name), utils.GetApiUrl("/auth/v1/callback")),
-				)
+			redirectUri := config.RedirectUri
+			if redirectUri == "" {
+				redirectUri = utils.GetApiUrl("/auth/v1/callback")
 			}
+			env = append(env, fmt.Sprintf("GOTRUE_EXTERNAL_%s_REDIRECT_URI=%s", strings.ToUpper(name), redirectUri))
 
 			if config.Url != "" {
-				env = append(env,
-					fmt.Sprintf("GOTRUE_EXTERNAL_%s_URL=%s", strings.ToUpper(name), config.Url),
-				)
+				env = append(env, fmt.Sprintf("GOTRUE_EXTERNAL_%s_URL=%s", strings.ToUpper(name), config.Url))
 			}
 		}
 
@@ -759,8 +747,9 @@ EOF
 					"SECRET_KEY_BASE=" + utils.Config.Realtime.SecretKeyBase,
 					"ERL_AFLAGS=" + utils.ToRealtimeEnv(utils.Config.Realtime.IpVersion),
 					"DNS_NODES=''",
-					"RLIMIT_NOFILE=10000",
+					"RLIMIT_NOFILE=",
 					"SEED_SELF_HOST=true",
+					"RUN_JANITOR=true",
 					fmt.Sprintf("MAX_HEADER_LENGTH=%d", utils.Config.Realtime.MaxHeaderLength),
 				},
 				ExposedPorts: nat.PortSet{"4000/tcp": {}},
@@ -827,7 +816,7 @@ EOF
 	}
 
 	// Start Storage.
-	if utils.Config.Storage.Enabled && !isContainerExcluded(utils.Config.Storage.Image, excluded) {
+	if isStorageEnabled {
 		dockerStoragePath := "/mnt"
 		if _, err := utils.DockerStart(
 			ctx,
@@ -846,7 +835,7 @@ EOF
 					// TODO: https://github.com/supabase/storage-api/issues/55
 					"STORAGE_S3_REGION=" + utils.Config.Storage.S3Credentials.Region,
 					"GLOBAL_S3_BUCKET=stub",
-					fmt.Sprintf("ENABLE_IMAGE_TRANSFORMATION=%t", utils.Config.Storage.ImageTransformation.Enabled),
+					fmt.Sprintf("ENABLE_IMAGE_TRANSFORMATION=%t", isImgProxyEnabled),
 					fmt.Sprintf("IMGPROXY_URL=http://%s:5001", utils.ImgProxyId),
 					"TUS_URL_PATH=/storage/v1/upload/resumable",
 					"S3_PROTOCOL_ACCESS_KEY_ID=" + utils.Config.Storage.S3Credentials.AccessKeyId,
@@ -885,15 +874,19 @@ EOF
 	}
 
 	// Start Storage ImgProxy.
-	if utils.Config.Storage.Enabled && utils.Config.Storage.ImageTransformation.Enabled && !isContainerExcluded(utils.Config.Storage.ImageTransformation.Image, excluded) {
+	if isStorageEnabled && isImgProxyEnabled {
 		if _, err := utils.DockerStart(
 			ctx,
 			container.Config{
-				Image: utils.Config.Storage.ImageTransformation.Image,
+				Image: utils.Config.Storage.ImgProxyImage,
 				Env: []string{
 					"IMGPROXY_BIND=:5001",
 					"IMGPROXY_LOCAL_FILESYSTEM_ROOT=/",
 					"IMGPROXY_USE_ETAG=/",
+					"IMGPROXY_MAX_SRC_RESOLUTION=50",
+					"IMGPROXY_MAX_SRC_FILE_SIZE=25000000",
+					"IMGPROXY_MAX_ANIMATION_FRAMES=60",
+					"IMGPROXY_ENABLE_WEBP_DETECTION=true",
 				},
 				Healthcheck: &container.HealthConfig{
 					Test:     []string{"CMD", "imgproxy", "health"},
@@ -944,7 +937,7 @@ EOF
 					"PG_META_DB_PASSWORD=" + dbConfig.Password,
 				},
 				Healthcheck: &container.HealthConfig{
-					Test:     []string{"CMD", "node", `--eval='fetch("http://127.0.0.1:8080/health").then((r) => {if (r.status !== 200) throw new Error(r.status)})'`},
+					Test:     []string{"CMD-SHELL", `node --eval="fetch('http://127.0.0.1:8080/health').then((r) => {if (!r.ok) throw new Error(r.status)})"`},
 					Interval: 10 * time.Second,
 					Timeout:  2 * time.Second,
 					Retries:  3,
@@ -990,7 +983,7 @@ EOF
 					"HOSTNAME=0.0.0.0",
 				},
 				Healthcheck: &container.HealthConfig{
-					Test:     []string{"CMD", "node", `--eval='fetch("http://127.0.0.1:3000/api/profile", (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})'`},
+					Test:     []string{"CMD-SHELL", `node --eval="fetch('http://localhost:3000/api/platform/profile').then((r) => {if (!r.ok) throw new Error(r.status)})"`},
 					Interval: 10 * time.Second,
 					Timeout:  2 * time.Second,
 					Retries:  3,
@@ -1044,13 +1037,14 @@ EOF
 					"PORT=4000",
 					fmt.Sprintf("PROXY_PORT_SESSION=%d", portSession),
 					fmt.Sprintf("PROXY_PORT_TRANSACTION=%d", portTransaction),
-					fmt.Sprintf("DATABASE_URL=ecto://%s:%s@%s:%d/%s", dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Database),
+					fmt.Sprintf("DATABASE_URL=ecto://%s:%s@%s:%d/%s", dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, "_supabase"),
 					"CLUSTER_POSTGRES=true",
 					"SECRET_KEY_BASE=" + utils.Config.Db.Pooler.SecretKeyBase,
 					"VAULT_ENC_KEY=" + utils.Config.Db.Pooler.EncryptionKey,
 					"API_JWT_SECRET=" + utils.Config.Auth.JwtSecret,
 					"METRICS_JWT_SECRET=" + utils.Config.Auth.JwtSecret,
 					"REGION=local",
+					"RUN_JANITOR=true",
 					"ERL_AFLAGS=-proto_dist inet_tcp",
 				},
 				Cmd: []string{

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -22,17 +23,25 @@ import (
 	"github.com/supabase/cli/internal/migration/apply"
 	"github.com/supabase/cli/internal/status"
 	"github.com/supabase/cli/internal/utils"
+	"github.com/supabase/cli/internal/utils/flags"
 	"github.com/supabase/cli/pkg/migration"
+	"github.com/supabase/cli/pkg/vault"
 )
 
 var (
 	HealthTimeout = 120 * time.Second
 	//go:embed templates/schema.sql
 	initialSchema string
+	//go:embed templates/webhook.sql
+	webhookSchema string
+	//go:embed templates/_supabase.sql
+	_supabaseSchema string
+	//go:embed templates/restore.sh
+	restoreScript string
 )
 
-func Run(ctx context.Context, fsys afero.Fs) error {
-	if err := utils.LoadConfigFS(fsys); err != nil {
+func Run(ctx context.Context, fromBackup string, fsys afero.Fs) error {
+	if err := flags.LoadConfig(fsys); err != nil {
 		return err
 	}
 	if err := utils.AssertSupabaseDbIsRunning(); err == nil {
@@ -41,11 +50,9 @@ func Run(ctx context.Context, fsys afero.Fs) error {
 	} else if !errors.Is(err, utils.ErrNotRunning) {
 		return err
 	}
-	// Skip logflare container in db start
-	utils.Config.Analytics.Enabled = false
-	err := StartDatabase(ctx, fsys, os.Stderr)
+	err := StartDatabase(ctx, fromBackup, fsys, os.Stderr)
 	if err != nil {
-		if err := utils.DockerRemoveAll(context.Background(), os.Stderr); err != nil {
+		if err := utils.DockerRemoveAll(context.Background(), os.Stderr, utils.Config.ProjectId); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
@@ -56,7 +63,6 @@ func NewContainerConfig() container.Config {
 	env := []string{
 		"POSTGRES_PASSWORD=" + utils.Config.Db.Password,
 		"POSTGRES_HOST=/var/run/postgresql",
-		"POSTGRES_INITDB_ARGS=--lc-ctype=C.UTF-8",
 		"JWT_SECRET=" + utils.Config.Auth.JwtSecret,
 		fmt.Sprintf("JWT_EXP=%d", utils.Config.Auth.JwtExpiry),
 	}
@@ -81,12 +87,19 @@ func NewContainerConfig() container.Config {
 			Timeout:  2 * time.Second,
 			Retries:  3,
 		},
-		Entrypoint: []string{"sh", "-c", `cat <<'EOF' > /etc/postgresql.schema.sql && cat <<'EOF' > /etc/postgresql-custom/pgsodium_root.key && docker-entrypoint.sh postgres -D /etc/postgresql
+		Entrypoint: []string{"sh", "-c", `
+cat <<'EOF' > /etc/postgresql.schema.sql && \
+cat <<'EOF' > /etc/postgresql-custom/pgsodium_root.key && \
+cat <<'EOF' >> /etc/postgresql/postgresql.conf && \
+docker-entrypoint.sh postgres -D /etc/postgresql
 ` + initialSchema + `
+` + webhookSchema + `
+` + _supabaseSchema + `
 EOF
 ` + utils.Config.Db.RootKey + `
 EOF
-`},
+` + utils.Config.Db.Settings.ToPostgresConfig() + `
+EOF`},
 	}
 	if utils.Config.Db.MajorVersion >= 14 {
 		config.Cmd = []string{"postgres",
@@ -111,7 +124,7 @@ func NewHostConfig() container.HostConfig {
 	return hostConfig
 }
 
-func StartDatabase(ctx context.Context, fsys afero.Fs, w io.Writer, options ...func(*pgx.ConnConfig)) error {
+func StartDatabase(ctx context.Context, fromBackup string, fsys afero.Fs, w io.Writer, options ...func(*pgx.ConnConfig)) error {
 	config := NewContainerConfig()
 	hostConfig := NewHostConfig()
 	networkingConfig := network.NetworkingConfig{
@@ -122,14 +135,45 @@ func StartDatabase(ctx context.Context, fsys afero.Fs, w io.Writer, options ...f
 		},
 	}
 	if utils.Config.Db.MajorVersion <= 14 {
-		config.Entrypoint = nil
+		config.Entrypoint = []string{"sh", "-c", `
+cat <<'EOF' > /docker-entrypoint-initdb.d/supabase_schema.sql && \
+cat <<'EOF' >> /etc/postgresql/postgresql.conf && \
+docker-entrypoint.sh postgres -D /etc/postgresql
+` + _supabaseSchema + `
+EOF
+` + utils.Config.Db.Settings.ToPostgresConfig() + `
+EOF`}
 		hostConfig.Tmpfs = map[string]string{"/docker-entrypoint-initdb.d": ""}
+	}
+	if len(fromBackup) > 0 {
+		config.Entrypoint = []string{"sh", "-c", `
+cat <<'EOF' > /etc/postgresql.schema.sql && \
+cat <<'EOF' > /docker-entrypoint-initdb.d/migrate.sh && \
+cat <<'EOF' > /etc/postgresql-custom/pgsodium_root.key && \
+cat <<'EOF' >> /etc/postgresql/postgresql.conf && \
+docker-entrypoint.sh postgres -D /etc/postgresql
+` + initialSchema + `
+` + _supabaseSchema + `
+EOF
+` + restoreScript + `
+EOF
+` + utils.Config.Db.RootKey + `
+EOF
+` + utils.Config.Db.Settings.ToPostgresConfig() + `
+EOF`}
+		if !filepath.IsAbs(fromBackup) {
+			fromBackup = filepath.Join(utils.CurrentDirAbs, fromBackup)
+		}
+		hostConfig.Binds = append(hostConfig.Binds, utils.ToDockerPath(fromBackup)+":/etc/backup.sql:ro")
 	}
 	// Creating volume will not override existing volume, so we must inspect explicitly
 	_, err := utils.Docker.VolumeInspect(ctx, utils.DbId)
 	utils.NoBackupVolume = client.IsErrNotFound(err)
 	if utils.NoBackupVolume {
 		fmt.Fprintln(w, "Starting database...")
+	} else if len(fromBackup) > 0 {
+		utils.CmdSuggestion = fmt.Sprintf("Run %s to remove existing docker volumes.", utils.Aqua("supabase stop --no-backup"))
+		return errors.Errorf("backup volume already exists")
 	} else {
 		fmt.Fprintln(w, "Starting database from backup...")
 	}
@@ -140,12 +184,24 @@ func StartDatabase(ctx context.Context, fsys afero.Fs, w io.Writer, options ...f
 		return err
 	}
 	// Initialize if we are on PG14 and there's no existing db volume
-	if utils.NoBackupVolume {
-		if err := setupDatabase(ctx, fsys, w, options...); err != nil {
+	if len(fromBackup) > 0 {
+		if err := initSchema15(ctx, utils.DbId); err != nil {
+			return err
+		}
+	} else if utils.NoBackupVolume {
+		if err := SetupLocalDatabase(ctx, "", fsys, w, options...); err != nil {
 			return err
 		}
 	}
 	return initCurrentBranch(fsys)
+}
+
+func NewBackoffPolicy(ctx context.Context, timeout time.Duration) backoff.BackOff {
+	policy := backoff.WithMaxRetries(
+		backoff.NewConstantBackOff(time.Second),
+		uint64(timeout.Seconds()),
+	)
+	return backoff.WithContext(policy, ctx)
 }
 
 func WaitForHealthyService(ctx context.Context, timeout time.Duration, started ...string) error {
@@ -161,10 +217,7 @@ func WaitForHealthyService(ctx context.Context, timeout time.Duration, started .
 		started = unhealthy
 		return errors.Join(errHealth...)
 	}
-	policy := backoff.WithContext(backoff.WithMaxRetries(
-		backoff.NewConstantBackOff(time.Second),
-		uint64(timeout.Seconds()),
-	), ctx)
+	policy := NewBackoffPolicy(ctx, timeout)
 	err := backoff.Retry(probe, policy)
 	if err != nil && !errors.Is(err, context.Canceled) {
 		// Print container logs for easier debugging
@@ -237,8 +290,9 @@ func initRealtimeJob(host string) utils.DockerJob {
 			"SECRET_KEY_BASE=" + utils.Config.Realtime.SecretKeyBase,
 			"ERL_AFLAGS=" + utils.ToRealtimeEnv(utils.Config.Realtime.IpVersion),
 			"DNS_NODES=''",
-			"RLIMIT_NOFILE=10000",
+			"RLIMIT_NOFILE=",
 			"SEED_SELF_HOST=true",
+			"RUN_JANITOR=true",
 			fmt.Sprintf("MAX_HEADER_LENGTH=%d", utils.Config.Realtime.MaxHeaderLength),
 		},
 		Cmd: []string{"/app/bin/realtime", "eval", fmt.Sprintf(`{:ok, _} = Application.ensure_all_started(:realtime)
@@ -257,6 +311,7 @@ func initStorageJob(host string) utils.DockerJob {
 			fmt.Sprintf("DATABASE_URL=postgresql://supabase_storage_admin:%s@%s:5432/postgres", utils.Config.Db.Password, host),
 			fmt.Sprintf("FILE_SIZE_LIMIT=%v", utils.Config.Storage.FileSizeLimit),
 			"STORAGE_BACKEND=file",
+			"STORAGE_FILE_BACKEND_PATH=/mnt",
 			"TENANT_ID=stub",
 			// TODO: https://github.com/supabase/storage-api/issues/55
 			"REGION=stub",
@@ -302,7 +357,7 @@ func initSchema15(ctx context.Context, host string) error {
 	return nil
 }
 
-func setupDatabase(ctx context.Context, fsys afero.Fs, w io.Writer, options ...func(*pgx.ConnConfig)) error {
+func SetupLocalDatabase(ctx context.Context, version string, fsys afero.Fs, w io.Writer, options ...func(*pgx.ConnConfig)) error {
 	conn, err := utils.ConnectLocalPostgres(ctx, pgconn.Config{}, options...)
 	if err != nil {
 		return err
@@ -311,12 +366,20 @@ func setupDatabase(ctx context.Context, fsys afero.Fs, w io.Writer, options ...f
 	if err := SetupDatabase(ctx, conn, utils.DbId, w, fsys); err != nil {
 		return err
 	}
-	return apply.MigrateAndSeed(ctx, "", conn, fsys)
+	return apply.MigrateAndSeed(ctx, version, conn, fsys)
 }
 
 func SetupDatabase(ctx context.Context, conn *pgx.Conn, host string, w io.Writer, fsys afero.Fs) error {
 	if err := initSchema(ctx, conn, host, w); err != nil {
 		return err
 	}
-	return apply.CreateCustomRoles(ctx, conn, fsys)
+	// Create vault secrets first so roles.sql can reference them
+	if err := vault.UpsertVaultSecrets(ctx, utils.Config.Db.Vault, conn); err != nil {
+		return err
+	}
+	err := migration.SeedGlobals(ctx, []string{utils.CustomRolesPath}, conn, afero.NewIOFS(fsys))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return err
 }

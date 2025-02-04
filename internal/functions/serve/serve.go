@@ -19,6 +19,7 @@ import (
 	"github.com/supabase/cli/internal/functions/deploy"
 	"github.com/supabase/cli/internal/secrets/set"
 	"github.com/supabase/cli/internal/utils"
+	"github.com/supabase/cli/internal/utils/flags"
 )
 
 type InspectMode string
@@ -70,7 +71,7 @@ var (
 
 func Run(ctx context.Context, envFilePath string, noVerifyJWT *bool, importMapPath string, runtimeOption RuntimeOption, fsys afero.Fs) error {
 	// 1. Sanity checks.
-	if err := utils.LoadConfigFS(fsys); err != nil {
+	if err := flags.LoadConfig(fsys); err != nil {
 		return err
 	}
 	if err := utils.AssertSupabaseDbIsRunning(); err != nil {
@@ -109,11 +110,6 @@ func ServeFunctions(ctx context.Context, envFilePath string, noVerifyJWT *bool, 
 	if err != nil {
 		return err
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return errors.Errorf("failed to get working directory: %w", err)
-	}
-	dockerFuncDir := utils.ToDockerPath(filepath.Join(cwd, utils.FunctionsDir))
 	env = append(env,
 		fmt.Sprintf("SUPABASE_URL=http://%s:8000", utils.KongAliases[0]),
 		"SUPABASE_ANON_KEY="+utils.Config.Auth.AnonKey,
@@ -121,7 +117,6 @@ func ServeFunctions(ctx context.Context, envFilePath string, noVerifyJWT *bool, 
 		"SUPABASE_DB_URL="+dbUrl,
 		"SUPABASE_INTERNAL_JWT_SECRET="+utils.Config.Auth.JwtSecret,
 		fmt.Sprintf("SUPABASE_INTERNAL_HOST_PORT=%d", utils.Config.Api.Port),
-		"SUPABASE_INTERNAL_FUNCTIONS_PATH="+dockerFuncDir,
 	)
 	if viper.GetBool("DEBUG") {
 		env = append(env, "SUPABASE_INTERNAL_DEBUG=true")
@@ -130,6 +125,10 @@ func ServeFunctions(ctx context.Context, envFilePath string, noVerifyJWT *bool, 
 		env = append(env, "SUPABASE_INTERNAL_WALLCLOCK_LIMIT_SEC=0")
 	}
 	// 3. Parse custom import map
+	cwd, err := os.Getwd()
+	if err != nil {
+		return errors.Errorf("failed to get working directory: %w", err)
+	}
 	binds, functionsConfigString, err := populatePerFunctionConfigs(cwd, importMapPath, noVerifyJWT, fsys)
 	if err != nil {
 		return err
@@ -219,6 +218,10 @@ func populatePerFunctionConfigs(cwd, importMapPath string, noVerifyJWT *bool, fs
 	}
 	binds := []string{}
 	for slug, fc := range functionsConfig {
+		if !fc.IsEnabled() {
+			fmt.Fprintln(os.Stderr, "Skipped serving Function:", slug)
+			continue
+		}
 		modules, err := deploy.GetBindMounts(cwd, utils.FunctionsDir, "", fc.Entrypoint, fc.ImportMap, fsys)
 		if err != nil {
 			return nil, "", err
@@ -227,6 +230,9 @@ func populatePerFunctionConfigs(cwd, importMapPath string, noVerifyJWT *bool, fs
 		fc.ImportMap = utils.ToDockerPath(fc.ImportMap)
 		fc.Entrypoint = utils.ToDockerPath(fc.Entrypoint)
 		functionsConfig[slug] = fc
+		for i, val := range fc.StaticFiles {
+			fc.StaticFiles[i] = utils.ToDockerPath(val)
+		}
 	}
 	functionsConfigBytes, err := json.Marshal(functionsConfig)
 	if err != nil {

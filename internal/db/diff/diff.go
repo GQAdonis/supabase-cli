@@ -24,6 +24,7 @@ import (
 	"github.com/supabase/cli/internal/db/start"
 	"github.com/supabase/cli/internal/gen/keys"
 	"github.com/supabase/cli/internal/utils"
+	"github.com/supabase/cli/internal/utils/flags"
 	"github.com/supabase/cli/pkg/migration"
 	"github.com/supabase/cli/pkg/parser"
 )
@@ -32,7 +33,7 @@ type DiffFunc func(context.Context, string, string, []string) (string, error)
 
 func Run(ctx context.Context, schema []string, file string, config pgconn.Config, differ DiffFunc, fsys afero.Fs, options ...func(*pgx.ConnConfig)) (err error) {
 	// Sanity checks.
-	if err := utils.LoadConfigFS(fsys); err != nil {
+	if err := flags.LoadConfig(fsys); err != nil {
 		return err
 	}
 	if utils.IsLocalDatabase(config) {
@@ -146,12 +147,12 @@ func CreateShadowDatabase(ctx context.Context, port uint16) (string, error) {
 
 func ConnectShadowDatabase(ctx context.Context, timeout time.Duration, options ...func(*pgx.ConnConfig)) (conn *pgx.Conn, err error) {
 	// Retry until connected, cancelled, or timeout
-	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), uint64(timeout.Seconds()))
+	policy := start.NewBackoffPolicy(ctx, timeout)
 	config := pgconn.Config{Port: utils.Config.Db.ShadowPort}
 	connect := func() (*pgx.Conn, error) {
 		return utils.ConnectLocalPostgres(ctx, config, options...)
 	}
-	return backoff.RetryWithData(connect, backoff.WithContext(policy, ctx))
+	return backoff.RetryWithData(connect, policy)
 }
 
 func MigrateShadowDatabase(ctx context.Context, container string, fsys afero.Fs, options ...func(*pgx.ConnConfig)) error {

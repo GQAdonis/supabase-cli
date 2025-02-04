@@ -35,13 +35,17 @@ func (s *EdgeRuntimeAPI) UpsertFunctions(ctx context.Context, functionConfig con
 		exists[f.Slug] = struct{}{}
 	}
 	for slug, function := range functionConfig {
+		if !function.IsEnabled() {
+			fmt.Fprintln(os.Stderr, "Skipped deploying Function:", slug)
+			continue
+		}
 		for _, keep := range filter {
 			if !keep(slug) {
 				continue
 			}
 		}
 		var body bytes.Buffer
-		if err := s.eszip.Bundle(ctx, function.Entrypoint, function.ImportMap, &body); err != nil {
+		if err := s.eszip.Bundle(ctx, function.Entrypoint, function.ImportMap, function.StaticFiles, &body); err != nil {
 			return err
 		}
 		// Update if function already exists
@@ -51,19 +55,19 @@ func (s *EdgeRuntimeAPI) UpsertFunctions(ctx context.Context, functionConfig con
 					VerifyJwt:      function.VerifyJWT,
 					ImportMapPath:  toFileURL(function.ImportMap),
 					EntrypointPath: toFileURL(function.Entrypoint),
-				}, eszipContentType, &body); err != nil {
+				}, eszipContentType, bytes.NewReader(body.Bytes())); err != nil {
 					return errors.Errorf("failed to update function: %w", err)
 				} else if resp.JSON200 == nil {
 					return errors.Errorf("unexpected status %d: %s", resp.StatusCode(), string(resp.Body))
 				}
 			} else {
-				if resp, err := s.client.CreateFunctionWithBodyWithResponse(ctx, s.project, &api.CreateFunctionParams{
+				if resp, err := s.client.V1CreateAFunctionWithBodyWithResponse(ctx, s.project, &api.V1CreateAFunctionParams{
 					Slug:           &slug,
 					Name:           &slug,
 					VerifyJwt:      function.VerifyJWT,
 					ImportMapPath:  toFileURL(function.ImportMap),
 					EntrypointPath: toFileURL(function.Entrypoint),
-				}, eszipContentType, &body); err != nil {
+				}, eszipContentType, bytes.NewReader(body.Bytes())); err != nil {
 					return errors.Errorf("failed to create function: %w", err)
 				} else if resp.JSON201 == nil {
 					return errors.Errorf("unexpected status %d: %s", resp.StatusCode(), string(resp.Body))

@@ -1,48 +1,56 @@
-import {
-  STATUS_CODE,
-  STATUS_TEXT,
-} from "https://deno.land/std/http/status.ts";
+import { STATUS_CODE, STATUS_TEXT } from "https://deno.land/std/http/status.ts";
+import * as posix from "https://deno.land/std/path/posix/mod.ts";
 
 import * as jose from "https://deno.land/x/jose@v4.13.1/index.ts";
 
 const SB_SPECIFIC_ERROR_CODE = {
-  BootError: STATUS_CODE.ServiceUnavailable, /** Service Unavailable (RFC 7231, 6.6.4) */
-  WorkerRequestCancelled: STATUS_CODE.BadGateway, /** Bad Gateway (RFC 7231, 6.6.3) */
+  BootError:
+    STATUS_CODE.ServiceUnavailable, /** Service Unavailable (RFC 7231, 6.6.4) */
+  InvalidWorkerResponse:
+    STATUS_CODE.InternalServerError, /** Internal Server Error (RFC 7231, 6.6.1) */
   WorkerLimit: 546, /** Extended */
 };
 
 const SB_SPECIFIC_ERROR_TEXT = {
   [SB_SPECIFIC_ERROR_CODE.BootError]: "BOOT_ERROR",
-  [SB_SPECIFIC_ERROR_CODE.WorkerRequestCancelled]: "WORKER_REQUEST_CANCELLED",
+  [SB_SPECIFIC_ERROR_CODE.InvalidWorkerResponse]: "WORKER_ERROR",
   [SB_SPECIFIC_ERROR_CODE.WorkerLimit]: "WORKER_LIMIT",
 };
 
 const SB_SPECIFIC_ERROR_REASON = {
-  [SB_SPECIFIC_ERROR_CODE.BootError]: "Worker failed to boot (please check logs)",
-  [SB_SPECIFIC_ERROR_CODE.WorkerRequestCancelled]: "Request cancelled by the proxy due to an error or resource limit of worker (please check logs)",
-  [SB_SPECIFIC_ERROR_CODE.WorkerLimit]: "Worker failed to respond due to an error or resource limit (please check logs)",
-}
+  [SB_SPECIFIC_ERROR_CODE.BootError]:
+    "Worker failed to boot (please check logs)",
+  [SB_SPECIFIC_ERROR_CODE.InvalidWorkerResponse]:
+    "Function exited due to an error (please check logs)",
+  [SB_SPECIFIC_ERROR_CODE.WorkerLimit]:
+    "Worker failed to respond due to a resource limit (please check logs)",
+};
 
 // OS stuff - we don't want to expose these to the functions.
 const EXCLUDED_ENVS = ["HOME", "HOSTNAME", "PATH", "PWD"];
 
 const JWT_SECRET = Deno.env.get("SUPABASE_INTERNAL_JWT_SECRET")!;
 const HOST_PORT = Deno.env.get("SUPABASE_INTERNAL_HOST_PORT")!;
-const FUNCTIONS_PATH = Deno.env.get("SUPABASE_INTERNAL_FUNCTIONS_PATH")!;
 const DEBUG = Deno.env.get("SUPABASE_INTERNAL_DEBUG") === "true";
 const FUNCTIONS_CONFIG_STRING = Deno.env.get(
   "SUPABASE_INTERNAL_FUNCTIONS_CONFIG",
 )!;
 
-const WALLCLOCK_LIMIT_SEC = parseInt(Deno.env.get("SUPABASE_INTERNAL_WALLCLOCK_LIMIT_SEC"));
+const WALLCLOCK_LIMIT_SEC = parseInt(
+  Deno.env.get("SUPABASE_INTERNAL_WALLCLOCK_LIMIT_SEC"),
+);
 
 const DENO_SB_ERROR_MAP = new Map([
   [Deno.errors.InvalidWorkerCreation, SB_SPECIFIC_ERROR_CODE.BootError],
-  [Deno.errors.InvalidWorkerResponse, SB_SPECIFIC_ERROR_CODE.WorkerLimit],
-  [Deno.errors.WorkerRequestCancelled, SB_SPECIFIC_ERROR_CODE.WorkerRequestCancelled],
+  [Deno.errors.InvalidWorkerResponse, SB_SPECIFIC_ERROR_CODE.InvalidWorkerResponse],
+  [
+    Deno.errors.WorkerRequestCancelled,
+    SB_SPECIFIC_ERROR_CODE.WorkerLimit,
+  ],
 ]);
 
 interface FunctionConfig {
+  entrypointPath: string;
   importMapPath: string;
   verifyJWT: boolean;
 }
@@ -144,7 +152,7 @@ Deno.serve({
       }
     }
 
-    const servicePath = `${FUNCTIONS_PATH}/${functionName}`;
+    const servicePath = posix.dirname(functionsConfig[functionName].entrypointPath);
     console.error(`serving the request with ${servicePath}`);
 
     // Ref: https://supabase.com/docs/guides/functions/limits
@@ -167,6 +175,11 @@ Deno.serve({
     // point, as their migration process will not be easy.
     const decoratorType = "tc39";
 
+    const absEntrypoint = posix.join(Deno.cwd(), functionsConfig[functionName].entrypointPath);
+    const maybeEntrypoint = posix.toFileUrl(absEntrypoint).href;
+
+    const staticPatterns = functionsConfig[functionName].staticFiles;
+
     try {
       const worker = await EdgeRuntime.userWorkers.create({
         servicePath,
@@ -179,17 +192,15 @@ Deno.serve({
         customModuleRoot,
         cpuTimeSoftLimitMs,
         cpuTimeHardLimitMs,
-        decoratorType
+        decoratorType,
+        maybeEntrypoint,
+        context: {
+          useReadSyncFileAPI: true,
+        },
+        staticPatterns,
       });
 
-      const controller = new AbortController();
-      const { signal } = controller;
-
-      // Note: Requests are aborted after 200s (same config as in production)
-      // TODO: make this configuarable
-      setTimeout(() => controller.abort(), 200 * 1000);
-
-      return await worker.fetch(req, { signal });
+      return await worker.fetch(req);
     } catch (e) {
       console.error(e);
 

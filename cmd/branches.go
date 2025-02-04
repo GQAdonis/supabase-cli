@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
 
 	"github.com/go-errors/errors"
 	"github.com/spf13/afero"
@@ -29,7 +28,7 @@ var (
 	}
 
 	branchRegion = utils.EnumFlag{
-		Allowed: flyRegions(),
+		Allowed: awsRegions(),
 	}
 	persistent bool
 
@@ -83,7 +82,7 @@ var (
 			} else {
 				branchId = args[0]
 			}
-			return get.Run(ctx, branchId)
+			return get.Run(ctx, branchId, afero.NewOsFs())
 		},
 	}
 
@@ -96,9 +95,8 @@ var (
 			string(api.BranchResponseStatusFUNCTIONSFAILED),
 		},
 	}
-	branchName  string
-	gitBranch   string
-	resetOnPush bool
+	branchName string
+	gitBranch  string
 
 	branchUpdateCmd = &cobra.Command{
 		Use:   "update [branch-id]",
@@ -113,9 +111,6 @@ var (
 			}
 			if cmdFlags.Changed("git-branch") {
 				body.GitBranch = &gitBranch
-			}
-			if cmdFlags.Changed("reset-on-push") {
-				body.ResetOnPush = &resetOnPush
 			}
 			if cmdFlags.Changed("persistent") {
 				body.Persistent = &persistent
@@ -170,30 +165,20 @@ func init() {
 	createFlags.Var(&branchRegion, "region", "Select a region to deploy the branch database.")
 	createFlags.Var(&size, "size", "Select a desired instance size for the branch database.")
 	createFlags.BoolVar(&persistent, "persistent", false, "Whether to create a persistent branch.")
+	getFlags := branchGetCmd.Flags()
+	getFlags.VarP(&utils.OutputFormat, "output", "o", "Output format of branch details.")
 	branchesCmd.AddCommand(branchCreateCmd)
 	branchesCmd.AddCommand(branchListCmd)
 	branchesCmd.AddCommand(branchGetCmd)
 	updateFlags := branchUpdateCmd.Flags()
 	updateFlags.StringVar(&branchName, "name", "", "Rename the preview branch.")
 	updateFlags.StringVar(&gitBranch, "git-branch", "", "Change the associated git branch.")
-	updateFlags.BoolVar(&resetOnPush, "reset-on-push", false, "Reset the preview branch on git push.")
 	updateFlags.BoolVar(&persistent, "persistent", false, "Switch between ephemeral and persistent branch.")
 	updateFlags.Var(&branchStatus, "status", "Override the current branch status.")
 	branchesCmd.AddCommand(branchUpdateCmd)
 	branchesCmd.AddCommand(branchDeleteCmd)
 	branchesCmd.AddCommand(branchDisableCmd)
 	rootCmd.AddCommand(branchesCmd)
-}
-
-func flyRegions() []string {
-	result := make([]string, len(utils.FlyRegions))
-	i := 0
-	for k := range utils.FlyRegions {
-		result[i] = k
-		i++
-	}
-	sort.Strings(result)
-	return result
 }
 
 func promptBranchId(ctx context.Context, ref string) error {

@@ -14,10 +14,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/go-errors/errors"
 	"github.com/spf13/afero"
 	"github.com/supabase/cli/internal/utils"
+	"github.com/supabase/cli/internal/utils/flags"
 	"github.com/supabase/cli/pkg/fetcher"
 )
 
@@ -66,7 +68,7 @@ func (c *CustomName) toValues(exclude ...string) map[string]string {
 
 func Run(ctx context.Context, names CustomName, format string, fsys afero.Fs) error {
 	// Sanity checks.
-	if err := utils.LoadConfigFS(fsys); err != nil {
+	if err := flags.LoadConfig(fsys); err != nil {
 		return err
 	}
 	if err := assertContainerHealthy(ctx, utils.DbId); err != nil {
@@ -89,7 +91,7 @@ func Run(ctx context.Context, names CustomName, format string, fsys afero.Fs) er
 
 func checkServiceHealth(ctx context.Context) ([]string, error) {
 	resp, err := utils.Docker.ContainerList(ctx, container.ListOptions{
-		Filters: utils.CliProjectFilter(),
+		Filters: utils.CliProjectFilter(utils.Config.ProjectId),
 	})
 	if err != nil {
 		return nil, errors.Errorf("failed to list running containers: %w", err)
@@ -114,7 +116,7 @@ func assertContainerHealthy(ctx context.Context, container string) error {
 		return errors.Errorf("failed to inspect container health: %w", err)
 	} else if !resp.State.Running {
 		return errors.Errorf("%s container is not running: %s", container, resp.State.Status)
-	} else if resp.State.Health != nil && resp.State.Health.Status != "healthy" {
+	} else if resp.State.Health != nil && resp.State.Health.Status != types.Healthy {
 		return errors.Errorf("%s container is not ready: %s", container, resp.State.Health.Status)
 	}
 	return nil

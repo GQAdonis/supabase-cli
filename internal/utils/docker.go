@@ -20,12 +20,12 @@ import (
 	dockerConfig "github.com/docker/cli/cli/config"
 	dockerFlags "github.com/docker/cli/cli/flags"
 	"github.com/docker/cli/cli/streams"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
@@ -65,10 +65,7 @@ func DockerNetworkCreateIfNotExists(ctx context.Context, mode container.NetworkM
 	if !isUserDefined(mode) {
 		return nil
 	}
-	_, err := Docker.NetworkCreate(ctx, mode.NetworkName(), types.NetworkCreate{
-		CheckDuplicate: true,
-		Labels:         labels,
-	})
+	_, err := Docker.NetworkCreate(ctx, mode.NetworkName(), network.CreateOptions{Labels: labels})
 	// if error is network already exists, no need to propagate to user
 	if errdefs.IsConflict(err) || errors.Is(err, podman.ErrNetworkExists) {
 		return nil
@@ -96,9 +93,9 @@ func WaitAll[T any](containers []T, exec func(container T) error) []error {
 // NoBackupVolume TODO: encapsulate this state in a class
 var NoBackupVolume = false
 
-func DockerRemoveAll(ctx context.Context, w io.Writer) error {
+func DockerRemoveAll(ctx context.Context, w io.Writer, projectId string) error {
 	fmt.Fprintln(w, "Stopping containers...")
-	args := CliProjectFilter()
+	args := CliProjectFilter(projectId)
 	containers, err := Docker.ContainerList(ctx, container.ListOptions{
 		All:     true,
 		Filters: args,
@@ -129,10 +126,12 @@ func DockerRemoveAll(ctx context.Context, w io.Writer) error {
 	}
 	// Remove named volumes
 	if NoBackupVolume {
-		// Since docker engine 25.0.3, all flag is required to include named volumes.
-		// https://github.com/docker/cli/blob/master/cli/command/volume/prune.go#L76
 		vargs := args.Clone()
-		vargs.Add("all", "true")
+		if versions.GreaterThanOrEqualTo(Docker.ClientVersion(), "1.42") {
+			// Since docker engine 25.0.3, all flag is required to include named volumes.
+			// https://github.com/docker/cli/blob/master/cli/command/volume/prune.go#L76
+			vargs.Add("all", "true")
+		}
 		if report, err := Docker.VolumesPrune(ctx, vargs); err != nil {
 			return errors.Errorf("failed to prune volumes: %w", err)
 		} else if viper.GetBool("DEBUG") {
@@ -148,9 +147,14 @@ func DockerRemoveAll(ctx context.Context, w io.Writer) error {
 	return nil
 }
 
-func CliProjectFilter() filters.Args {
+func CliProjectFilter(projectId string) filters.Args {
+	if len(projectId) == 0 {
+		return filters.NewArgs(
+			filters.Arg("label", CliProjectLabel),
+		)
+	}
 	return filters.NewArgs(
-		filters.Arg("label", CliProjectLabel+"="+Config.ProjectId),
+		filters.Arg("label", CliProjectLabel+"="+projectId),
 	)
 }
 
@@ -286,6 +290,9 @@ func DockerStart(ctx context.Context, config container.Config, hostConfig contai
 	// Skip named volume for BitBucket pipeline
 	if os.Getenv("BITBUCKET_CLONE_DIR") != "" {
 		hostConfig.Binds = binds
+		// Bitbucket doesn't allow for --security-opt option to be set
+		// https://support.atlassian.com/bitbucket-cloud/docs/run-docker-commands-in-bitbucket-pipelines/#Full-list-of-restricted-commands
+		hostConfig.SecurityOpt = nil
 	} else {
 		// Create named volumes with labels
 		for _, name := range sources {
@@ -410,19 +417,19 @@ func DockerStreamLogsOnce(ctx context.Context, containerId string, stdout, stder
 }
 
 // Exec a command once inside a container, returning stdout and throwing error on non-zero exit code.
-func DockerExecOnce(ctx context.Context, container string, env []string, cmd []string) (string, error) {
+func DockerExecOnce(ctx context.Context, containerId string, env []string, cmd []string) (string, error) {
 	stderr := io.Discard
 	if viper.GetBool("DEBUG") {
 		stderr = os.Stderr
 	}
 	var out bytes.Buffer
-	err := DockerExecOnceWithStream(ctx, container, "", env, cmd, &out, stderr)
+	err := DockerExecOnceWithStream(ctx, containerId, "", env, cmd, &out, stderr)
 	return out.String(), err
 }
 
-func DockerExecOnceWithStream(ctx context.Context, container, workdir string, env, cmd []string, stdout, stderr io.Writer) error {
+func DockerExecOnceWithStream(ctx context.Context, containerId, workdir string, env, cmd []string, stdout, stderr io.Writer) error {
 	// Reset shadow database
-	exec, err := Docker.ContainerExecCreate(ctx, container, types.ExecConfig{
+	exec, err := Docker.ContainerExecCreate(ctx, containerId, container.ExecOptions{
 		Env:          env,
 		Cmd:          cmd,
 		WorkingDir:   workdir,
@@ -433,7 +440,7 @@ func DockerExecOnceWithStream(ctx context.Context, container, workdir string, en
 		return errors.Errorf("failed to exec docker create: %w", err)
 	}
 	// Read exec output
-	resp, err := Docker.ContainerExecAttach(ctx, exec.ID, types.ExecStartCheck{})
+	resp, err := Docker.ContainerExecAttach(ctx, exec.ID, container.ExecStartOptions{})
 	if err != nil {
 		return errors.Errorf("failed to exec docker attach: %w", err)
 	}

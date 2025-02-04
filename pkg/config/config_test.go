@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	_ "embed"
+	"path"
 	"strings"
 	"testing"
 	fs "testing/fstest"
@@ -40,10 +41,15 @@ func TestConfigParsing(t *testing.T) {
 		t.Setenv("AZURE_SECRET", "this is cool")
 		t.Setenv("AUTH_SEND_SMS_SECRETS", "v1,whsec_aWxpa2VzdXBhYmFzZXZlcnltdWNoYW5kaWhvcGV5b3Vkb3Rvbw==")
 		t.Setenv("SENDGRID_API_KEY", "sendgrid")
+		t.Setenv("AUTH_CALLBACK_URL", "http://localhost:3000/auth/callback")
 		assert.NoError(t, config.Load("", fsys))
 		// Check error
 		assert.Equal(t, "hello", config.Auth.External["azure"].ClientId)
-		assert.Equal(t, "this is cool", config.Auth.External["azure"].Secret)
+		assert.Equal(t, "this is cool", config.Auth.External["azure"].Secret.Value)
+		assert.Equal(t, []string{
+			"https://127.0.0.1:3000",
+			"http://localhost:3000/auth/callback",
+		}, config.Auth.AdditionalRedirectUrls)
 	})
 
 	t.Run("config file with environment variables fails when unset", func(t *testing.T) {
@@ -54,6 +60,45 @@ func TestConfigParsing(t *testing.T) {
 		}
 		// Run test
 		assert.Error(t, config.Load("", fsys))
+	})
+
+	t.Run("config file with remotes", func(t *testing.T) {
+		config := NewConfig()
+		// Setup in-memory fs
+		fsys := fs.MapFS{
+			"supabase/config.toml":           &fs.MapFile{Data: testInitConfigEmbed},
+			"supabase/templates/invite.html": &fs.MapFile{},
+		}
+		// Run test
+		t.Setenv("TWILIO_AUTH_TOKEN", "token")
+		t.Setenv("AZURE_CLIENT_ID", "hello")
+		t.Setenv("AZURE_SECRET", "this is cool")
+		t.Setenv("AUTH_SEND_SMS_SECRETS", "v1,whsec_aWxpa2VzdXBhYmFzZXZlcnltdWNoYW5kaWhvcGV5b3Vkb3Rvbw==")
+		t.Setenv("SENDGRID_API_KEY", "sendgrid")
+		t.Setenv("AUTH_CALLBACK_URL", "http://localhost:3000/auth/callback")
+		assert.NoError(t, config.Load("", fsys))
+		// Check the default value in the config
+		assert.Equal(t, "http://127.0.0.1:3000", config.Auth.SiteUrl)
+		assert.Equal(t, true, config.Auth.EnableSignup)
+		assert.Equal(t, true, config.Auth.External["azure"].Enabled)
+		assert.Equal(t, []string{"image/png", "image/jpeg"}, config.Storage.Buckets["images"].AllowedMimeTypes)
+		// Check the values for remotes override
+		production, ok := config.Remotes["production"]
+		assert.True(t, ok)
+		staging, ok := config.Remotes["staging"]
+		assert.True(t, ok)
+		// Check the values for production override
+		assert.Equal(t, "vpefcjyosynxeiebfscx", production.ProjectId)
+		assert.Equal(t, "http://feature-auth-branch.com/", production.Auth.SiteUrl)
+		assert.Equal(t, false, production.Auth.EnableSignup)
+		assert.Equal(t, false, production.Auth.External["azure"].Enabled)
+		assert.Equal(t, "nope", production.Auth.External["azure"].ClientId)
+		// Check seed should be disabled by default for remote configs
+		assert.Equal(t, false, production.Db.Seed.Enabled)
+		// Check the values for the staging override
+		assert.Equal(t, "bvikqvbczudanvggcord", staging.ProjectId)
+		assert.Equal(t, []string{"image/png"}, staging.Storage.Buckets["images"].AllowedMimeTypes)
+		assert.Equal(t, true, staging.Db.Seed.Enabled)
 	})
 }
 
@@ -160,50 +205,74 @@ func TestSigningJWT(t *testing.T) {
 
 func TestValidateHookURI(t *testing.T) {
 	tests := []struct {
-		name      string
-		uri       string
-		hookName  string
-		shouldErr bool
-		errorMsg  string
+		hookConfig
+		name     string
+		errorMsg string
 	}{
 		{
-			name:      "valid http URL",
-			uri:       "http://example.com",
-			hookName:  "testHook",
-			shouldErr: false,
+			name: "valid http URL",
+			hookConfig: hookConfig{
+				Enabled: true,
+				URI:     "http://example.com",
+				Secrets: Secret{Value: "v1,whsec_aWxpa2VzdXBhYmFzZXZlcnltdWNoYW5kaWhvcGV5b3Vkb3Rvbw=="},
+			},
 		},
 		{
-			name:      "valid https URL",
-			uri:       "https://example.com",
-			hookName:  "testHook",
-			shouldErr: false,
+			name: "valid https URL",
+			hookConfig: hookConfig{
+				Enabled: true,
+				URI:     "https://example.com",
+				Secrets: Secret{Value: "v1,whsec_aWxpa2VzdXBhYmFzZXZlcnltdWNoYW5kaWhvcGV5b3Vkb3Rvbw=="},
+			},
 		},
 		{
-			name:      "valid pg-functions URI",
-			uri:       "pg-functions://functionName",
-			hookName:  "pgHook",
-			shouldErr: false,
+			name: "valid pg-functions URI",
+			hookConfig: hookConfig{
+				Enabled: true,
+				URI:     "pg-functions://functionName",
+			},
 		},
 		{
-			name:      "invalid URI with unsupported scheme",
-			uri:       "ftp://example.com",
-			hookName:  "malformedHook",
-			shouldErr: true,
-			errorMsg:  "Invalid HTTP hook config: auth.hook.malformedHook should be a Postgres function URI, or a HTTP or HTTPS URL",
+			name: "invalid URI with unsupported scheme",
+			hookConfig: hookConfig{
+				Enabled: true,
+				URI:     "ftp://example.com",
+				Secrets: Secret{Value: "v1,whsec_aWxpa2VzdXBhYmFzZXZlcnltdWNoYW5kaWhvcGV5b3Vkb3Rvbw=="},
+			},
+			errorMsg: "Invalid hook config: auth.hook.invalid URI with unsupported scheme.uri should be a HTTP, HTTPS, or pg-functions URI",
 		},
 		{
-			name:      "invalid URI with parsing error",
-			uri:       "http://a b.com",
-			hookName:  "errorHook",
-			shouldErr: true,
-			errorMsg:  "failed to parse template url: parse \"http://a b.com\": invalid character \" \" in host name",
+			name: "invalid URI with parsing error",
+			hookConfig: hookConfig{
+				Enabled: true,
+				URI:     "http://a b.com",
+				Secrets: Secret{Value: "v1,whsec_aWxpa2VzdXBhYmFzZXZlcnltdWNoYW5kaWhvcGV5b3Vkb3Rvbw=="},
+			},
+			errorMsg: "failed to parse template url: parse \"http://a b.com\": invalid character \" \" in host name",
+		},
+		{
+			name: "valid http URL with missing secrets",
+			hookConfig: hookConfig{
+				Enabled: true,
+				URI:     "http://example.com",
+			},
+			errorMsg: "Missing required field in config: auth.hook.valid http URL with missing secrets.secrets",
+		},
+		{
+			name: "valid pg-functions URI with unsupported secrets",
+			hookConfig: hookConfig{
+				Enabled: true,
+				URI:     "pg-functions://functionName",
+				Secrets: Secret{Value: "test-secret"},
+			},
+			errorMsg: "Invalid hook config: auth.hook.valid pg-functions URI with unsupported secrets.secrets is unsupported for pg-functions URI",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateHookURI(tt.uri, tt.hookName)
-			if tt.shouldErr {
+			err := tt.hookConfig.validate(tt.name)
+			if len(tt.errorMsg) > 0 {
 				assert.Error(t, err, "Expected an error for %v", tt.name)
 				assert.EqualError(t, err, tt.errorMsg, "Expected error message does not match for %v", tt.name)
 			} else {
@@ -211,4 +280,154 @@ func TestValidateHookURI(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLoadSeedPaths(t *testing.T) {
+	t.Run("returns seed files matching patterns", func(t *testing.T) {
+		// Setup in-memory fs
+		fsys := fs.MapFS{
+			"supabase/seeds/seed1.sql":   &fs.MapFile{Data: []byte("INSERT INTO table1 VALUES (1);")},
+			"supabase/seeds/seed2.sql":   &fs.MapFile{Data: []byte("INSERT INTO table2 VALUES (2);")},
+			"supabase/seeds/seed3.sql":   &fs.MapFile{Data: []byte("INSERT INTO table2 VALUES (2);")},
+			"supabase/seeds/another.sql": &fs.MapFile{Data: []byte("INSERT INTO table2 VALUES (2);")},
+			"supabase/seeds/ignore.sql":  &fs.MapFile{Data: []byte("INSERT INTO table3 VALUES (3);")},
+		}
+		// Mock config patterns
+		config := seed{
+			Enabled: true,
+			GlobPatterns: []string{
+				"seeds/seed[12].sql",
+				"seeds/ano*.sql",
+			},
+		}
+		// Run test
+		err := config.loadSeedPaths("supabase", fsys)
+		// Check error
+		assert.NoError(t, err)
+		// Validate files
+		assert.ElementsMatch(t, []string{
+			"supabase/seeds/seed1.sql",
+			"supabase/seeds/seed2.sql",
+			"supabase/seeds/another.sql",
+		}, config.SqlPaths)
+	})
+	t.Run("returns seed files matching patterns skip duplicates", func(t *testing.T) {
+		// Setup in-memory fs
+		fsys := fs.MapFS{
+			"supabase/seeds/seed1.sql":   &fs.MapFile{Data: []byte("INSERT INTO table1 VALUES (1);")},
+			"supabase/seeds/seed2.sql":   &fs.MapFile{Data: []byte("INSERT INTO table2 VALUES (2);")},
+			"supabase/seeds/seed3.sql":   &fs.MapFile{Data: []byte("INSERT INTO table2 VALUES (2);")},
+			"supabase/seeds/another.sql": &fs.MapFile{Data: []byte("INSERT INTO table2 VALUES (2);")},
+			"supabase/seeds/ignore.sql":  &fs.MapFile{Data: []byte("INSERT INTO table3 VALUES (3);")},
+		}
+		// Mock config patterns
+		config := seed{
+			Enabled: true,
+			GlobPatterns: []string{
+				"seeds/seed[12].sql",
+				"seeds/ano*.sql",
+				"seeds/seed*.sql",
+			},
+		}
+		// Run test
+		err := config.loadSeedPaths("supabase", fsys)
+		// Check error
+		assert.NoError(t, err)
+		// Validate files
+		assert.ElementsMatch(t, []string{
+			"supabase/seeds/seed1.sql",
+			"supabase/seeds/seed2.sql",
+			"supabase/seeds/another.sql",
+			"supabase/seeds/seed3.sql",
+		}, config.SqlPaths)
+	})
+
+	t.Run("returns error on invalid pattern", func(t *testing.T) {
+		// Setup in-memory fs
+		fsys := fs.MapFS{}
+		// Mock config patterns
+		config := seed{Enabled: true, GlobPatterns: []string{"[*!#@D#"}}
+		// Run test
+		err := config.loadSeedPaths("", fsys)
+		// Check error
+		assert.ErrorIs(t, err, path.ErrBadPattern)
+		// The resuling seed list should be empty
+		assert.Empty(t, config.SqlPaths)
+	})
+
+	t.Run("returns empty list if no files match", func(t *testing.T) {
+		// Setup in-memory fs
+		fsys := fs.MapFS{}
+		// Mock config patterns
+		config := seed{Enabled: true, GlobPatterns: []string{"seeds/*.sql"}}
+		// Run test
+		err := config.loadSeedPaths("", fsys)
+		// Check error
+		assert.NoError(t, err)
+		// Validate files
+		assert.Empty(t, config.SqlPaths)
+	})
+}
+
+func TestLoadEnv(t *testing.T) {
+	t.Setenv("SUPABASE_AUTH_JWT_SECRET", "test-secret")
+	t.Setenv("SUPABASE_DB_ROOT_KEY", "test-root-key")
+	config := NewConfig()
+	// Run test
+	err := config.loadFromEnv()
+	// Check error
+	assert.NoError(t, err)
+	assert.Equal(t, "test-secret", config.Auth.JwtSecret)
+	assert.Equal(t, "test-root-key", config.Db.RootKey)
+}
+
+func TestLoadFunctionImportMap(t *testing.T) {
+	t.Run("uses deno.json as import map when present", func(t *testing.T) {
+		config := NewConfig()
+		fsys := fs.MapFS{
+			"supabase/config.toml": &fs.MapFile{Data: []byte(`
+			project_id = "bvikqvbczudanvggcord"
+			[functions.hello]
+			`)},
+			"supabase/functions/hello/deno.json": &fs.MapFile{},
+			"supabase/functions/hello/index.ts":  &fs.MapFile{},
+		}
+		// Run test
+		assert.NoError(t, config.Load("", fsys))
+		// Check that deno.json was set as import map
+		assert.Equal(t, "supabase/functions/hello/deno.json", config.Functions["hello"].ImportMap)
+	})
+
+	t.Run("uses deno.jsonc as import map when present", func(t *testing.T) {
+		config := NewConfig()
+		fsys := fs.MapFS{
+			"supabase/config.toml": &fs.MapFile{Data: []byte(`
+			project_id = "bvikqvbczudanvggcord"
+			[functions.hello]
+			`)},
+			"supabase/functions/hello/deno.jsonc": &fs.MapFile{},
+			"supabase/functions/hello/index.ts":   &fs.MapFile{},
+		}
+		// Run test
+		assert.NoError(t, config.Load("", fsys))
+		// Check that deno.jsonc was set as import map
+		assert.Equal(t, "supabase/functions/hello/deno.jsonc", config.Functions["hello"].ImportMap)
+	})
+
+	t.Run("config.toml takes precedence over deno.json", func(t *testing.T) {
+		config := NewConfig()
+		fsys := fs.MapFS{
+			"supabase/config.toml": &fs.MapFile{Data: []byte(`
+			project_id = "bvikqvbczudanvggcord"
+			[functions]
+			hello.import_map = "custom_import_map.json"
+			`)},
+			"supabase/functions/hello/deno.json": &fs.MapFile{},
+			"supabase/functions/hello/index.ts":  &fs.MapFile{},
+		}
+		// Run test
+		assert.NoError(t, config.Load("", fsys))
+		// Check that config.toml takes precedence over deno.json
+		assert.Equal(t, "supabase/custom_import_map.json", config.Functions["hello"].ImportMap)
+	})
 }

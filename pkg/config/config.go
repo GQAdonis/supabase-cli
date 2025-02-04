@@ -9,12 +9,16 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -25,10 +29,11 @@ import (
 	"github.com/go-errors/errors"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
-	"golang.org/x/mod/semver"
-
+	"github.com/supabase/cli/pkg/cast"
 	"github.com/supabase/cli/pkg/fetcher"
+	"golang.org/x/mod/semver"
 )
 
 // Type for turning human-friendly bytes string ("5MB", "32kB") into an int64 during toml decoding.
@@ -51,13 +56,6 @@ type LogflareBackend string
 const (
 	LogflarePostgres LogflareBackend = "postgres"
 	LogflareBigQuery LogflareBackend = "bigquery"
-)
-
-type PoolMode string
-
-const (
-	TransactionMode PoolMode = "transaction"
-	SessionMode     PoolMode = "session"
 )
 
 type AddressFamily string
@@ -119,7 +117,8 @@ func (c CustomClaims) NewToken() *jwt.Token {
 //
 // Default values for internal configs should be added to `var Config` initializer.
 type (
-	config struct {
+	// Common config fields between our "base" config and any "remote" branch specific
+	baseConfig struct {
 		ProjectId    string         `toml:"project_id"`
 		Hostname     string         `toml:"-"`
 		Api          api            `toml:"api"`
@@ -132,47 +131,12 @@ type (
 		EdgeRuntime  edgeRuntime    `toml:"edge_runtime"`
 		Functions    FunctionConfig `toml:"functions"`
 		Analytics    analytics      `toml:"analytics"`
-		Experimental experimental   `toml:"experimental" mapstructure:"-"`
+		Experimental experimental   `toml:"experimental"`
 	}
 
-	api struct {
-		Enabled         bool     `toml:"enabled"`
-		Image           string   `toml:"-"`
-		KongImage       string   `toml:"-"`
-		Port            uint16   `toml:"port"`
-		Schemas         []string `toml:"schemas"`
-		ExtraSearchPath []string `toml:"extra_search_path"`
-		MaxRows         uint     `toml:"max_rows"`
-		Tls             tlsKong  `toml:"tls"`
-		// TODO: replace [auth|studio].api_url
-		ExternalUrl string `toml:"external_url"`
-	}
-
-	tlsKong struct {
-		Enabled bool `toml:"enabled"`
-	}
-
-	db struct {
-		Image        string `toml:"-"`
-		Port         uint16 `toml:"port"`
-		ShadowPort   uint16 `toml:"shadow_port"`
-		MajorVersion uint   `toml:"major_version"`
-		Password     string `toml:"-"`
-		RootKey      string `toml:"-" mapstructure:"root_key"`
-		Pooler       pooler `toml:"pooler"`
-	}
-
-	pooler struct {
-		Enabled          bool     `toml:"enabled"`
-		Image            string   `toml:"-"`
-		Port             uint16   `toml:"port"`
-		PoolMode         PoolMode `toml:"pool_mode"`
-		DefaultPoolSize  uint     `toml:"default_pool_size"`
-		MaxClientConn    uint     `toml:"max_client_conn"`
-		ConnectionString string   `toml:"-"`
-		TenantId         string   `toml:"-"`
-		EncryptionKey    string   `toml:"-"`
-		SecretKeyBase    string   `toml:"-"`
+	config struct {
+		baseConfig `mapstructure:",squash"`
+		Remotes    map[string]baseConfig `toml:"remotes"`
 	}
 
 	realtime struct {
@@ -195,203 +159,13 @@ type (
 	}
 
 	inbucket struct {
-		Enabled  bool   `toml:"enabled"`
-		Image    string `toml:"-"`
-		Port     uint16 `toml:"port"`
-		SmtpPort uint16 `toml:"smtp_port"`
-		Pop3Port uint16 `toml:"pop3_port"`
-	}
-
-	storage struct {
-		Enabled             bool                 `toml:"enabled"`
-		Image               string               `toml:"-"`
-		FileSizeLimit       sizeInBytes          `toml:"file_size_limit"`
-		S3Credentials       storageS3Credentials `toml:"-"`
-		ImageTransformation imageTransformation  `toml:"image_transformation"`
-		Buckets             BucketConfig         `toml:"buckets"`
-	}
-
-	BucketConfig map[string]bucket
-
-	bucket struct {
-		Public           *bool       `toml:"public"`
-		FileSizeLimit    sizeInBytes `toml:"file_size_limit"`
-		AllowedMimeTypes []string    `toml:"allowed_mime_types"`
-		ObjectsPath      string      `toml:"objects_path"`
-	}
-
-	imageTransformation struct {
-		Enabled bool   `toml:"enabled"`
-		Image   string `toml:"-"`
-	}
-
-	storageS3Credentials struct {
-		AccessKeyId     string `toml:"-"`
-		SecretAccessKey string `toml:"-"`
-		Region          string `toml:"-"`
-	}
-
-	auth struct {
-		Enabled                bool     `toml:"enabled"`
-		Image                  string   `toml:"-"`
-		SiteUrl                string   `toml:"site_url"`
-		AdditionalRedirectUrls []string `toml:"additional_redirect_urls"`
-
-		JwtExpiry                  uint `toml:"jwt_expiry"`
-		EnableRefreshTokenRotation bool `toml:"enable_refresh_token_rotation"`
-		RefreshTokenReuseInterval  uint `toml:"refresh_token_reuse_interval"`
-		EnableManualLinking        bool `toml:"enable_manual_linking"`
-
-		Hook     hook     `toml:"hook"`
-		MFA      mfa      `toml:"mfa"`
-		Sessions sessions `toml:"sessions"`
-
-		EnableSignup           bool  `toml:"enable_signup"`
-		EnableAnonymousSignIns bool  `toml:"enable_anonymous_sign_ins"`
-		Email                  email `toml:"email"`
-		Sms                    sms   `toml:"sms"`
-		External               map[string]provider
-
-		// Custom secrets can be injected from .env file
-		JwtSecret      string `toml:"-" mapstructure:"jwt_secret"`
-		AnonKey        string `toml:"-" mapstructure:"anon_key"`
-		ServiceRoleKey string `toml:"-" mapstructure:"service_role_key"`
-
-		ThirdParty thirdParty `toml:"third_party"`
-	}
-
-	thirdParty struct {
-		Firebase tpaFirebase `toml:"firebase"`
-		Auth0    tpaAuth0    `toml:"auth0"`
-		Cognito  tpaCognito  `toml:"aws_cognito"`
-	}
-
-	tpaFirebase struct {
-		Enabled bool `toml:"enabled"`
-
-		ProjectID string `toml:"project_id"`
-	}
-
-	tpaAuth0 struct {
-		Enabled bool `toml:"enabled"`
-
-		Tenant       string `toml:"tenant"`
-		TenantRegion string `toml:"tenant_region"`
-	}
-
-	tpaCognito struct {
-		Enabled bool `toml:"enabled"`
-
-		UserPoolID     string `toml:"user_pool_id"`
-		UserPoolRegion string `toml:"user_pool_region"`
-	}
-
-	email struct {
-		EnableSignup         bool                     `toml:"enable_signup"`
-		DoubleConfirmChanges bool                     `toml:"double_confirm_changes"`
-		EnableConfirmations  bool                     `toml:"enable_confirmations"`
-		SecurePasswordChange bool                     `toml:"secure_password_change"`
-		Template             map[string]emailTemplate `toml:"template"`
-		Smtp                 smtp                     `toml:"smtp"`
-		MaxFrequency         time.Duration            `toml:"max_frequency"`
-	}
-
-	smtp struct {
-		Host       string `toml:"host"`
+		Enabled    bool   `toml:"enabled"`
+		Image      string `toml:"-"`
 		Port       uint16 `toml:"port"`
-		User       string `toml:"user"`
-		Pass       string `toml:"pass"`
+		SmtpPort   uint16 `toml:"smtp_port"`
+		Pop3Port   uint16 `toml:"pop3_port"`
 		AdminEmail string `toml:"admin_email"`
 		SenderName string `toml:"sender_name"`
-	}
-
-	emailTemplate struct {
-		Subject     string `toml:"subject"`
-		ContentPath string `toml:"content_path"`
-	}
-
-	sms struct {
-		EnableSignup        bool              `toml:"enable_signup"`
-		EnableConfirmations bool              `toml:"enable_confirmations"`
-		Template            string            `toml:"template"`
-		Twilio              twilioConfig      `toml:"twilio" mapstructure:"twilio"`
-		TwilioVerify        twilioConfig      `toml:"twilio_verify" mapstructure:"twilio_verify"`
-		Messagebird         messagebirdConfig `toml:"messagebird" mapstructure:"messagebird"`
-		Textlocal           textlocalConfig   `toml:"textlocal" mapstructure:"textlocal"`
-		Vonage              vonageConfig      `toml:"vonage" mapstructure:"vonage"`
-		TestOTP             map[string]string `toml:"test_otp"`
-		MaxFrequency        time.Duration     `toml:"max_frequency"`
-	}
-
-	hook struct {
-		MFAVerificationAttempt      hookConfig `toml:"mfa_verification_attempt"`
-		PasswordVerificationAttempt hookConfig `toml:"password_verification_attempt"`
-		CustomAccessToken           hookConfig `toml:"custom_access_token"`
-		SendSMS                     hookConfig `toml:"send_sms"`
-		SendEmail                   hookConfig `toml:"send_email"`
-	}
-	factorTypeConfiguration struct {
-		EnrollEnabled bool `toml:"enroll_enabled"`
-		VerifyEnabled bool `toml:"verify_enabled"`
-	}
-
-	phoneFactorTypeConfiguration struct {
-		factorTypeConfiguration
-		OtpLength    uint          `toml:"otp_length"`
-		Template     string        `toml:"template"`
-		MaxFrequency time.Duration `toml:"max_frequency"`
-	}
-
-	mfa struct {
-		TOTP               factorTypeConfiguration      `toml:"totp"`
-		Phone              phoneFactorTypeConfiguration `toml:"phone"`
-		MaxEnrolledFactors uint                         `toml:"max_enrolled_factors"`
-	}
-
-	hookConfig struct {
-		Enabled bool   `toml:"enabled"`
-		URI     string `toml:"uri"`
-		Secrets string `toml:"secrets"`
-	}
-
-	sessions struct {
-		Timebox           time.Duration `toml:"timebox"`
-		InactivityTimeout time.Duration `toml:"inactivity_timeout"`
-	}
-
-	twilioConfig struct {
-		Enabled           bool   `toml:"enabled"`
-		AccountSid        string `toml:"account_sid"`
-		MessageServiceSid string `toml:"message_service_sid"`
-		AuthToken         string `toml:"auth_token" mapstructure:"auth_token"`
-	}
-
-	messagebirdConfig struct {
-		Enabled    bool   `toml:"enabled"`
-		Originator string `toml:"originator"`
-		AccessKey  string `toml:"access_key" mapstructure:"access_key"`
-	}
-
-	textlocalConfig struct {
-		Enabled bool   `toml:"enabled"`
-		Sender  string `toml:"sender"`
-		ApiKey  string `toml:"api_key" mapstructure:"api_key"`
-	}
-
-	vonageConfig struct {
-		Enabled   bool   `toml:"enabled"`
-		From      string `toml:"from"`
-		ApiKey    string `toml:"api_key" mapstructure:"api_key"`
-		ApiSecret string `toml:"api_secret" mapstructure:"api_secret"`
-	}
-
-	provider struct {
-		Enabled        bool   `toml:"enabled"`
-		ClientId       string `toml:"client_id"`
-		Secret         string `toml:"secret"`
-		Url            string `toml:"url"`
-		RedirectUri    string `toml:"redirect_uri"`
-		SkipNonceCheck bool   `toml:"skip_nonce_check"`
 	}
 
 	edgeRuntime struct {
@@ -404,9 +178,11 @@ type (
 	FunctionConfig map[string]function
 
 	function struct {
-		VerifyJWT  *bool  `toml:"verify_jwt" json:"verifyJWT"`
-		ImportMap  string `toml:"import_map" json:"importMapPath,omitempty"`
-		Entrypoint string `json:"-"`
+		Enabled     *bool    `toml:"enabled" json:"-"`
+		VerifyJWT   *bool    `toml:"verify_jwt" json:"verifyJWT"`
+		ImportMap   string   `toml:"import_map" json:"importMapPath,omitempty"`
+		Entrypoint  string   `toml:"entrypoint" json:"entrypointPath,omitempty"`
+		StaticFiles []string `toml:"static_files" json:"staticFiles,omitempty"`
 	}
 
 	analytics struct {
@@ -423,14 +199,68 @@ type (
 		VectorPort uint16 `toml:"vector_port"`
 	}
 
+	webhooks struct {
+		Enabled bool `toml:"enabled"`
+	}
+
 	experimental struct {
-		OrioleDBVersion string `toml:"orioledb_version"`
-		S3Host          string `toml:"s3_host"`
-		S3Region        string `toml:"s3_region"`
-		S3AccessKey     string `toml:"s3_access_key"`
-		S3SecretKey     string `toml:"s3_secret_key"`
+		OrioleDBVersion string    `toml:"orioledb_version"`
+		S3Host          string    `toml:"s3_host"`
+		S3Region        string    `toml:"s3_region"`
+		S3AccessKey     string    `toml:"s3_access_key"`
+		S3SecretKey     string    `toml:"s3_secret_key"`
+		Webhooks        *webhooks `toml:"webhooks"`
 	}
 )
+
+func (f function) IsEnabled() bool {
+	// If Enabled is not defined, or defined and set to true
+	return f.Enabled == nil || *f.Enabled
+}
+
+func (a *auth) Clone() auth {
+	copy := *a
+	copy.External = maps.Clone(a.External)
+	if a.Email.Smtp != nil {
+		mailer := *a.Email.Smtp
+		copy.Email.Smtp = &mailer
+	}
+	if a.Hook.MFAVerificationAttempt != nil {
+		hook := *a.Hook.MFAVerificationAttempt
+		copy.Hook.MFAVerificationAttempt = &hook
+	}
+	if a.Hook.PasswordVerificationAttempt != nil {
+		hook := *a.Hook.PasswordVerificationAttempt
+		copy.Hook.PasswordVerificationAttempt = &hook
+	}
+	if a.Hook.CustomAccessToken != nil {
+		hook := *a.Hook.CustomAccessToken
+		copy.Hook.CustomAccessToken = &hook
+	}
+	if a.Hook.SendSMS != nil {
+		hook := *a.Hook.SendSMS
+		copy.Hook.SendSMS = &hook
+	}
+	if a.Hook.SendEmail != nil {
+		hook := *a.Hook.SendEmail
+		copy.Hook.SendEmail = &hook
+	}
+	copy.Email.Template = maps.Clone(a.Email.Template)
+	copy.Sms.TestOTP = maps.Clone(a.Sms.TestOTP)
+	return copy
+}
+
+func (c *baseConfig) Clone() baseConfig {
+	copy := *c
+	copy.Storage.Buckets = maps.Clone(c.Storage.Buckets)
+	copy.Functions = maps.Clone(c.Functions)
+	copy.Auth = c.Auth.Clone()
+	if c.Experimental.Webhooks != nil {
+		webhooks := *c.Experimental.Webhooks
+		copy.Experimental.Webhooks = &webhooks
+	}
+	return copy
+}
 
 type ConfigEditor func(*config)
 
@@ -441,7 +271,7 @@ func WithHostname(hostname string) ConfigEditor {
 }
 
 func NewConfig(editors ...ConfigEditor) config {
-	initial := config{
+	initial := config{baseConfig: baseConfig{
 		Hostname: "127.0.0.1",
 		Api: api{
 			Image:     postgrestImage,
@@ -457,6 +287,10 @@ func NewConfig(editors ...ConfigEditor) config {
 				EncryptionKey: "12345678901234567890123456789032",
 				SecretKeyBase: "EAx3IQ/wRG1v47ZD4NE4/9RzBI8Jmil3x0yhcW4V2NHBP6c2iPIzwjofi2Ep4HIG",
 			},
+			Seed: seed{
+				Enabled:      true,
+				GlobPatterns: []string{"./seed.sql"},
+			},
 		},
 		Realtime: realtime{
 			Image:           realtimeImage,
@@ -467,58 +301,29 @@ func NewConfig(editors ...ConfigEditor) config {
 			SecretKeyBase:   "EAx3IQ/wRG1v47ZD4NE4/9RzBI8Jmil3x0yhcW4V2NHBP6c2iPIzwjofi2Ep4HIG",
 		},
 		Storage: storage{
-			Image: storageImage,
+			Image:         storageImage,
+			ImgProxyImage: imageProxyImage,
 			S3Credentials: storageS3Credentials{
 				AccessKeyId:     "625729a08b95bf1b7ff351a663f3a23c",
 				SecretAccessKey: "850181e4652dd023b7a98c58ae0d2d34bd487ee0cc3254aed6eda37307425907",
 				Region:          "local",
 			},
-			ImageTransformation: imageTransformation{
-				Enabled: true,
-				Image:   imageProxyImage,
-			},
 		},
 		Auth: auth{
 			Image: gotrueImage,
 			Email: email{
-				Template: map[string]emailTemplate{
-					"invite":       {},
-					"confirmation": {},
-					"recovery":     {},
-					"magic_link":   {},
-					"email_change": {},
-				},
-				Smtp: smtp{
-					Host:       "inbucket",
-					Port:       2500,
-					AdminEmail: "admin@email.com",
-				},
+				Template: map[string]emailTemplate{},
 			},
-			External: map[string]provider{
-				"apple":         {},
-				"azure":         {},
-				"bitbucket":     {},
-				"discord":       {},
-				"facebook":      {},
-				"github":        {},
-				"gitlab":        {},
-				"google":        {},
-				"keycloak":      {},
-				"linkedin":      {}, // TODO: remove this field in v2
-				"linkedin_oidc": {},
-				"notion":        {},
-				"twitch":        {},
-				"twitter":       {},
-				"slack":         {}, // TODO: remove this field in v2
-				"slack_oidc":    {},
-				"spotify":       {},
-				"workos":        {},
-				"zoom":          {},
+			Sms: sms{
+				TestOTP: map[string]string{},
 			},
+			External:  map[string]provider{},
 			JwtSecret: defaultJwtSecret,
 		},
 		Inbucket: inbucket{
-			Image: inbucketImage,
+			Image:      inbucketImage,
+			AdminEmail: "admin@email.com",
+			SenderName: "Admin",
 		},
 		Studio: studio{
 			Image:       studioImage,
@@ -534,7 +339,7 @@ func NewConfig(editors ...ConfigEditor) config {
 		EdgeRuntime: edgeRuntime{
 			Image: edgeRuntimeImage,
 		},
-	}
+	}}
 	for _, apply := range editors {
 		apply(&initial)
 	}
@@ -548,6 +353,7 @@ var (
 
 	invalidProjectId = regexp.MustCompile("[^a-zA-Z0-9_.-]+")
 	envPattern       = regexp.MustCompile(`^env\((.*)\)$`)
+	refPattern       = regexp.MustCompile(`^[a-z]{20}$`)
 )
 
 func (c *config) Eject(w io.Writer) error {
@@ -567,33 +373,117 @@ func (c *config) Eject(w io.Writer) error {
 	return nil
 }
 
-func (c *config) Load(path string, fsys fs.FS) error {
-	builder := NewPathBuilder(path)
+// Loads custom config file to struct fields tagged with toml.
+func (c *config) loadFromFile(filename string, fsys fs.FS) error {
+	v := viper.New()
+	v.SetConfigType("toml")
 	// Load default values
 	var buf bytes.Buffer
 	if err := initConfigTemplate.Option("missingkey=zero").Execute(&buf, c); err != nil {
-		return errors.Errorf("failed to initialise config template: %w", err)
-	}
-	dec := toml.NewDecoder(&buf)
-	if _, err := dec.Decode(c); err != nil {
-		return errors.Errorf("failed to decode config template: %w", err)
-	}
-	// Load user defined config
-	if metadata, err := toml.DecodeFS(fsys, builder.ConfigPath, c); err != nil {
-		cwd, osErr := os.Getwd()
-		if osErr != nil {
-			cwd = "current directory"
-		}
-		return errors.Errorf("cannot read config in %s: %w", cwd, err)
-	} else if undecoded := metadata.Undecoded(); len(undecoded) > 0 {
-		fmt.Fprintf(os.Stderr, "Unknown config fields: %+v\n", undecoded)
-	}
-	// Load secrets from .env file
-	if err := loadDefaultEnv(); err != nil {
+		return errors.Errorf("failed to initialise template config: %w", err)
+	} else if err := c.loadFromReader(v, &buf); err != nil {
 		return err
 	}
-	if err := viper.Unmarshal(c); err != nil {
-		return errors.Errorf("failed to parse env to config: %w", err)
+	// Load custom config
+	if ext := filepath.Ext(filename); len(ext) > 0 {
+		v.SetConfigType(ext[1:])
+	}
+	f, err := fsys.Open(filename)
+	if err != nil {
+		return errors.Errorf("failed to read file config: %w", err)
+	}
+	defer f.Close()
+	return c.loadFromReader(v, f)
+}
+
+func (c *config) loadFromReader(v *viper.Viper, r io.Reader) error {
+	if err := v.MergeConfig(r); err != nil {
+		return errors.Errorf("failed to merge config: %w", err)
+	}
+	// Find [remotes.*] block to override base config
+	baseId := v.GetString("project_id")
+	idToName := map[string]string{baseId: "base"}
+	for name, remote := range v.GetStringMap("remotes") {
+		projectId := v.GetString(fmt.Sprintf("remotes.%s.project_id", name))
+		// Track remote project_id to check for duplication
+		if other, exists := idToName[projectId]; exists {
+			return errors.Errorf("duplicate project_id for [remotes.%s] and %s", name, other)
+		}
+		idToName[projectId] = fmt.Sprintf("[remotes.%s]", name)
+		if projectId == c.ProjectId {
+			fmt.Fprintln(os.Stderr, "Loading config override:", idToName[projectId])
+			if err := v.MergeConfigMap(remote.(map[string]any)); err != nil {
+				return err
+			}
+			v.Set("project_id", baseId)
+		}
+	}
+	// Manually parse [functions.*] to empty struct for backwards compatibility
+	for key, value := range v.GetStringMap("functions") {
+		if m, ok := value.(map[string]any); ok && len(m) == 0 {
+			v.Set("functions."+key, function{})
+		}
+	}
+	if err := v.UnmarshalExact(c, func(dc *mapstructure.DecoderConfig) {
+		dc.TagName = "toml"
+		dc.Squash = true
+		dc.ZeroFields = true
+		dc.DecodeHook = c.newDecodeHook(LoadEnvHook)
+	}); err != nil {
+		return errors.Errorf("failed to parse config: %w", err)
+	}
+	return nil
+}
+
+func (c *config) newDecodeHook(fs ...mapstructure.DecodeHookFunc) mapstructure.DecodeHookFunc {
+	fs = append(fs,
+		mapstructure.StringToTimeDurationHookFunc(),
+		mapstructure.StringToIPHookFunc(),
+		mapstructure.StringToSliceHookFunc(","),
+		mapstructure.TextUnmarshallerHookFunc(),
+		DecryptSecretHookFunc(c.ProjectId),
+	)
+	return mapstructure.ComposeDecodeHookFunc(fs...)
+}
+
+// Loads envs prefixed with supabase_ to struct fields tagged with mapstructure.
+func (c *config) loadFromEnv() error {
+	v := viper.New()
+	v.SetEnvPrefix("SUPABASE")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
+	// Viper does not parse env vars automatically. Instead of calling viper.BindEnv
+	// per key, we decode all keys from an existing struct, and merge them to viper.
+	// Ref: https://github.com/spf13/viper/issues/761#issuecomment-859306364
+	envKeysMap := map[string]interface{}{}
+	if dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result:               &envKeysMap,
+		IgnoreUntaggedFields: true,
+	}); err != nil {
+		return errors.Errorf("failed to create decoder: %w", err)
+	} else if err := dec.Decode(c.baseConfig); err != nil {
+		return errors.Errorf("failed to decode env: %w", err)
+	} else if err := v.MergeConfigMap(envKeysMap); err != nil {
+		return errors.Errorf("failed to merge env config: %w", err)
+	}
+	// Writes viper state back to config struct, with automatic env substitution
+	if err := v.UnmarshalExact(c, viper.DecodeHook(c.newDecodeHook())); err != nil {
+		return errors.Errorf("failed to parse env override: %w", err)
+	}
+	return nil
+}
+
+func (c *config) Load(path string, fsys fs.FS) error {
+	builder := NewPathBuilder(path)
+	// Load secrets from .env file
+	if err := loadNestedEnv(builder.SupabaseDirPath); err != nil {
+		return err
+	}
+	if err := c.loadFromFile(builder.ConfigPath, fsys); err != nil {
+		return err
+	}
+	if err := c.loadFromEnv(); err != nil {
+		return err
 	}
 	// Generate JWT tokens
 	if len(c.Auth.AnonKey) == 0 {
@@ -655,36 +545,74 @@ func (c *config) Load(path string, fsys fs.FS) error {
 	if version, err := fs.ReadFile(fsys, builder.PgmetaVersionPath); err == nil && len(version) > 0 {
 		c.Studio.PgmetaImage = replaceImageTag(pgmetaImage, string(version))
 	}
+	// TODO: replace derived config resolution with viper decode hooks
+	if err := c.baseConfig.resolve(builder, fsys); err != nil {
+		return err
+	}
+	return c.Validate(fsys)
+}
+
+func (c *baseConfig) resolve(builder pathBuilder, fsys fs.FS) error {
+	// Update content paths
+	for name, tmpl := range c.Auth.Email.Template {
+		// FIXME: only email template is relative to repo directory
+		cwd := filepath.Dir(builder.SupabaseDirPath)
+		if len(tmpl.ContentPath) > 0 && !filepath.IsAbs(tmpl.ContentPath) {
+			tmpl.ContentPath = filepath.Join(cwd, tmpl.ContentPath)
+		}
+		c.Auth.Email.Template[name] = tmpl
+	}
 	// Update fallback configs
 	for name, bucket := range c.Storage.Buckets {
 		if bucket.FileSizeLimit == 0 {
 			bucket.FileSizeLimit = c.Storage.FileSizeLimit
 		}
+		if len(bucket.ObjectsPath) > 0 && !filepath.IsAbs(bucket.ObjectsPath) {
+			bucket.ObjectsPath = filepath.Join(builder.SupabaseDirPath, bucket.ObjectsPath)
+		}
 		c.Storage.Buckets[name] = bucket
 	}
+	// Resolve functions config
 	for slug, function := range c.Functions {
-		// TODO: support configuring alternative entrypoint path, such as index.js
 		if len(function.Entrypoint) == 0 {
 			function.Entrypoint = filepath.Join(builder.FunctionsDir, slug, "index.ts")
 		} else if !filepath.IsAbs(function.Entrypoint) {
 			// Append supabase/ because paths in configs are specified relative to config.toml
 			function.Entrypoint = filepath.Join(builder.SupabaseDirPath, function.Entrypoint)
 		}
-		// Functions may not use import map so we don't set a default value
-		if len(function.ImportMap) > 0 && !filepath.IsAbs(function.ImportMap) {
+		if len(function.ImportMap) == 0 {
+			functionDir := filepath.Dir(function.Entrypoint)
+			denoJsonPath := filepath.Join(functionDir, "deno.json")
+			denoJsoncPath := filepath.Join(functionDir, "deno.jsonc")
+			if _, err := fs.Stat(fsys, denoJsonPath); err == nil {
+				function.ImportMap = denoJsonPath
+			} else if _, err := fs.Stat(fsys, denoJsoncPath); err == nil {
+				function.ImportMap = denoJsoncPath
+			}
+			// Functions may not use import map so we don't set a default value
+		} else if !filepath.IsAbs(function.ImportMap) {
 			function.ImportMap = filepath.Join(builder.SupabaseDirPath, function.ImportMap)
+		}
+		for i, val := range function.StaticFiles {
+			function.StaticFiles[i] = filepath.Join(builder.SupabaseDirPath, val)
 		}
 		c.Functions[slug] = function
 	}
-	return c.Validate()
+	return c.Db.Seed.loadSeedPaths(builder.SupabaseDirPath, fsys)
 }
 
-func (c *config) Validate() error {
+func (c *config) Validate(fsys fs.FS) error {
 	if c.ProjectId == "" {
 		return errors.New("Missing required field in config: project_id")
 	} else if sanitized := sanitizeProjectId(c.ProjectId); sanitized != c.ProjectId {
-		fmt.Fprintln(os.Stderr, "WARNING:", "project_id field in config is invalid. Auto-fixing to", sanitized)
+		fmt.Fprintln(os.Stderr, "WARN: project_id field in config is invalid. Auto-fixing to", sanitized)
 		c.ProjectId = sanitized
+	}
+	// Since remote config is merged to base, we only need to validate the project_id field.
+	for name, remote := range c.Remotes {
+		if !refPattern.MatchString(remote.ProjectId) {
+			return errors.Errorf("Invalid config for remotes.%s.project_id. Must be like: abcdefghijklmnopqrst", name)
+		}
 	}
 	// Validate api config
 	if c.Api.Enabled {
@@ -693,6 +621,12 @@ func (c *config) Validate() error {
 		}
 	}
 	// Validate db config
+	if c.Db.Settings.SessionReplicationRole != nil {
+		allowedRoles := []SessionReplicationRole{SessionReplicationRoleOrigin, SessionReplicationRoleReplica, SessionReplicationRoleLocal}
+		if !sliceContains(allowedRoles, *c.Db.Settings.SessionReplicationRole) {
+			return errors.Errorf("Invalid config for db.session_replication_role. Must be one of: %v", allowedRoles)
+		}
+	}
 	if c.Db.Port == 0 {
 		return errors.New("Missing required field in config: db.port")
 	}
@@ -708,17 +642,16 @@ func (c *config) Validate() error {
 	case 15:
 		if len(c.Experimental.OrioleDBVersion) > 0 {
 			c.Db.Image = "supabase/postgres:orioledb-" + c.Experimental.OrioleDBVersion
-			var err error
-			if c.Experimental.S3Host, err = maybeLoadEnv(c.Experimental.S3Host); err != nil {
+			if err := assertEnvLoaded(c.Experimental.S3Host); err != nil {
 				return err
 			}
-			if c.Experimental.S3Region, err = maybeLoadEnv(c.Experimental.S3Region); err != nil {
+			if err := assertEnvLoaded(c.Experimental.S3Region); err != nil {
 				return err
 			}
-			if c.Experimental.S3AccessKey, err = maybeLoadEnv(c.Experimental.S3AccessKey); err != nil {
+			if err := assertEnvLoaded(c.Experimental.S3AccessKey); err != nil {
 				return err
 			}
-			if c.Experimental.S3SecretKey, err = maybeLoadEnv(c.Experimental.S3SecretKey); err != nil {
+			if err := assertEnvLoaded(c.Experimental.S3SecretKey); err != nil {
 				return err
 			}
 		}
@@ -755,7 +688,6 @@ func (c *config) Validate() error {
 		} else if parsed.Host == "" || parsed.Host == c.Hostname {
 			c.Studio.ApiUrl = c.Api.ExternalUrl
 		}
-		c.Studio.OpenaiApiKey, _ = maybeLoadEnv(c.Studio.OpenaiApiKey)
 	}
 	// Validate smtp config
 	if c.Inbucket.Enabled {
@@ -768,131 +700,36 @@ func (c *config) Validate() error {
 		if c.Auth.SiteUrl == "" {
 			return errors.New("Missing required field in config: auth.site_url")
 		}
-		var err error
-		if c.Auth.SiteUrl, err = maybeLoadEnv(c.Auth.SiteUrl); err != nil {
+		if err := assertEnvLoaded(c.Auth.SiteUrl); err != nil {
 			return err
 		}
-		// Validate email config
-		for name, tmpl := range c.Auth.Email.Template {
-			if len(tmpl.ContentPath) > 0 && !fs.ValidPath(filepath.Clean(tmpl.ContentPath)) {
-				return errors.Errorf("Invalid config for auth.email.%s.content_path: %s", name, tmpl.ContentPath)
+		for i, url := range c.Auth.AdditionalRedirectUrls {
+			if err := assertEnvLoaded(url); err != nil {
+				return errors.Errorf("Invalid config for auth.additional_redirect_urls[%d]: %v", i, err)
 			}
 		}
-		if c.Auth.Email.Smtp.Pass, err = maybeLoadEnv(c.Auth.Email.Smtp.Pass); err != nil {
+		allowed := []PasswordRequirements{NoRequirements, LettersDigits, LowerUpperLettersDigits, LowerUpperLettersDigitsSymbols}
+		if !sliceContains(allowed, c.Auth.PasswordRequirements) {
+			return errors.Errorf("Invalid config for auth.password_requirements. Must be one of: %v", allowed)
+		}
+		if err := c.Auth.Hook.validate(); err != nil {
 			return err
 		}
-		// Validate sms config
-		if c.Auth.Sms.Twilio.Enabled {
-			if len(c.Auth.Sms.Twilio.AccountSid) == 0 {
-				return errors.New("Missing required field in config: auth.sms.twilio.account_sid")
-			}
-			if len(c.Auth.Sms.Twilio.MessageServiceSid) == 0 {
-				return errors.New("Missing required field in config: auth.sms.twilio.message_service_sid")
-			}
-			if len(c.Auth.Sms.Twilio.AuthToken) == 0 {
-				return errors.New("Missing required field in config: auth.sms.twilio.auth_token")
-			}
-			if c.Auth.Sms.Twilio.AuthToken, err = maybeLoadEnv(c.Auth.Sms.Twilio.AuthToken); err != nil {
-				return err
-			}
-		}
-		if c.Auth.Sms.TwilioVerify.Enabled {
-			if len(c.Auth.Sms.TwilioVerify.AccountSid) == 0 {
-				return errors.New("Missing required field in config: auth.sms.twilio_verify.account_sid")
-			}
-			if len(c.Auth.Sms.TwilioVerify.MessageServiceSid) == 0 {
-				return errors.New("Missing required field in config: auth.sms.twilio_verify.message_service_sid")
-			}
-			if len(c.Auth.Sms.TwilioVerify.AuthToken) == 0 {
-				return errors.New("Missing required field in config: auth.sms.twilio_verify.auth_token")
-			}
-			if c.Auth.Sms.TwilioVerify.AuthToken, err = maybeLoadEnv(c.Auth.Sms.TwilioVerify.AuthToken); err != nil {
-				return err
-			}
-		}
-		if c.Auth.Sms.Messagebird.Enabled {
-			if len(c.Auth.Sms.Messagebird.Originator) == 0 {
-				return errors.New("Missing required field in config: auth.sms.messagebird.originator")
-			}
-			if len(c.Auth.Sms.Messagebird.AccessKey) == 0 {
-				return errors.New("Missing required field in config: auth.sms.messagebird.access_key")
-			}
-			if c.Auth.Sms.Messagebird.AccessKey, err = maybeLoadEnv(c.Auth.Sms.Messagebird.AccessKey); err != nil {
-				return err
-			}
-		}
-		if c.Auth.Sms.Textlocal.Enabled {
-			if len(c.Auth.Sms.Textlocal.Sender) == 0 {
-				return errors.New("Missing required field in config: auth.sms.textlocal.sender")
-			}
-			if len(c.Auth.Sms.Textlocal.ApiKey) == 0 {
-				return errors.New("Missing required field in config: auth.sms.textlocal.api_key")
-			}
-			if c.Auth.Sms.Textlocal.ApiKey, err = maybeLoadEnv(c.Auth.Sms.Textlocal.ApiKey); err != nil {
-				return err
-			}
-		}
-		if c.Auth.Sms.Vonage.Enabled {
-			if len(c.Auth.Sms.Vonage.From) == 0 {
-				return errors.New("Missing required field in config: auth.sms.vonage.from")
-			}
-			if len(c.Auth.Sms.Vonage.ApiKey) == 0 {
-				return errors.New("Missing required field in config: auth.sms.vonage.api_key")
-			}
-			if len(c.Auth.Sms.Vonage.ApiSecret) == 0 {
-				return errors.New("Missing required field in config: auth.sms.vonage.api_secret")
-			}
-			if c.Auth.Sms.Vonage.ApiKey, err = maybeLoadEnv(c.Auth.Sms.Vonage.ApiKey); err != nil {
-				return err
-			}
-			if c.Auth.Sms.Vonage.ApiSecret, err = maybeLoadEnv(c.Auth.Sms.Vonage.ApiSecret); err != nil {
-				return err
-			}
-		}
-		if err := c.Auth.Hook.MFAVerificationAttempt.HandleHook("mfa_verification_attempt"); err != nil {
+		if err := c.Auth.MFA.validate(); err != nil {
 			return err
 		}
-		if err := c.Auth.Hook.PasswordVerificationAttempt.HandleHook("password_verification_attempt"); err != nil {
+		if err := c.Auth.Email.validate(fsys); err != nil {
 			return err
 		}
-		if err := c.Auth.Hook.CustomAccessToken.HandleHook("custom_access_token"); err != nil {
+		if err := c.Auth.Sms.validate(); err != nil {
 			return err
 		}
-		if err := c.Auth.Hook.SendSMS.HandleHook("send_sms"); err != nil {
+		if err := c.Auth.External.validate(); err != nil {
 			return err
 		}
-		if err := c.Auth.Hook.SendEmail.HandleHook("send_email"); err != nil {
+		if err := c.Auth.ThirdParty.validate(); err != nil {
 			return err
 		}
-		// Validate oauth config
-		for ext, provider := range c.Auth.External {
-			if !provider.Enabled {
-				continue
-			}
-			if provider.ClientId == "" {
-				return errors.Errorf("Missing required field in config: auth.external.%s.client_id", ext)
-			}
-			if !sliceContains([]string{"apple", "google"}, ext) && provider.Secret == "" {
-				return errors.Errorf("Missing required field in config: auth.external.%s.secret", ext)
-			}
-			if provider.ClientId, err = maybeLoadEnv(provider.ClientId); err != nil {
-				return err
-			}
-			if provider.Secret, err = maybeLoadEnv(provider.Secret); err != nil {
-				return err
-			}
-			if provider.RedirectUri, err = maybeLoadEnv(provider.RedirectUri); err != nil {
-				return err
-			}
-			if provider.Url, err = maybeLoadEnv(provider.Url); err != nil {
-				return err
-			}
-			c.Auth.External[ext] = provider
-		}
-	}
-	// Validate Third-Party Auth config
-	if err := c.Auth.ThirdParty.validate(); err != nil {
-		return err
 	}
 	// Validate functions config
 	if c.EdgeRuntime.Enabled {
@@ -926,21 +763,30 @@ func (c *config) Validate() error {
 			return errors.Errorf("Invalid config for analytics.backend. Must be one of: %v", allowed)
 		}
 	}
+	if err := c.Experimental.validate(); err != nil {
+		return err
+	}
 	return nil
 }
 
-func maybeLoadEnv(s string) (string, error) {
-	matches := envPattern.FindStringSubmatch(s)
-	if len(matches) == 0 {
-		return s, nil
+func assertEnvLoaded(s string) error {
+	if matches := envPattern.FindStringSubmatch(s); len(matches) > 1 {
+		fmt.Fprintln(os.Stderr, "WARN: environment variable is unset:", matches[1])
 	}
+	return nil
+}
 
-	envName := matches[1]
-	if value := os.Getenv(envName); value != "" {
-		return value, nil
+func LoadEnvHook(f reflect.Kind, t reflect.Kind, data interface{}) (interface{}, error) {
+	if f != reflect.String {
+		return data, nil
 	}
-
-	return "", errors.Errorf(`Error evaluating "%s": environment variable %s is unset.`, s, envName)
+	value := data.(string)
+	if matches := envPattern.FindStringSubmatch(value); len(matches) > 1 {
+		if env := os.Getenv(matches[1]); len(env) > 0 {
+			value = env
+		}
+	}
+	return value, nil
 }
 
 func truncateText(text string, maxLen int) string {
@@ -962,8 +808,30 @@ func sanitizeProjectId(src string) string {
 	return truncateText(sanitized, maxProjectIdLength)
 }
 
-func loadDefaultEnv() error {
+func loadNestedEnv(basePath string) error {
+	repoDir, err := os.Getwd()
+	if err != nil {
+		return errors.Errorf("failed to get repo directory: %w", err)
+	}
+	if !filepath.IsAbs(basePath) {
+		basePath = filepath.Join(repoDir, basePath)
+	}
 	env := viper.GetString("ENV")
+	for cwd := basePath; cwd != filepath.Dir(repoDir); cwd = filepath.Dir(cwd) {
+		if err := os.Chdir(cwd); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return errors.Errorf("failed to change directory: %w", err)
+		}
+		if err := loadDefaultEnv(env); err != nil {
+			return err
+		}
+	}
+	if err := os.Chdir(repoDir); err != nil {
+		return errors.Errorf("failed to restore directory: %w", err)
+	}
+	return nil
+}
+
+func loadDefaultEnv(env string) error {
 	if env == "" {
 		env = "development"
 	}
@@ -987,31 +855,259 @@ func loadEnvIfExists(path string) error {
 	return nil
 }
 
-func (h *hookConfig) HandleHook(hookType string) error {
+// Match the glob patterns from the config to get a deduplicated
+// array of all migrations files to apply in the declared order.
+func (c *seed) loadSeedPaths(basePath string, fsys fs.FS) error {
+	if !c.Enabled {
+		return nil
+	}
+	if c.SqlPaths != nil {
+		// Reuse already allocated array
+		c.SqlPaths = c.SqlPaths[:0]
+	}
+	set := make(map[string]struct{})
+	for _, pattern := range c.GlobPatterns {
+		// Glob expects / as path separator on windows
+		pattern = filepath.ToSlash(pattern)
+		if !filepath.IsAbs(pattern) {
+			pattern = path.Join(basePath, pattern)
+		}
+		matches, err := fs.Glob(fsys, pattern)
+		if err != nil {
+			return errors.Errorf("failed to apply glob pattern: %w", err)
+		}
+		if len(matches) == 0 {
+			fmt.Fprintln(os.Stderr, "WARN: no seed files matched pattern:", pattern)
+		}
+		sort.Strings(matches)
+		// Remove duplicates
+		for _, item := range matches {
+			if _, exists := set[item]; !exists {
+				set[item] = struct{}{}
+				c.SqlPaths = append(c.SqlPaths, item)
+			}
+		}
+	}
+	return nil
+}
+
+func (e *email) validate(fsys fs.FS) (err error) {
+	for name, tmpl := range e.Template {
+		if len(tmpl.ContentPath) == 0 {
+			if tmpl.Content != nil {
+				return errors.Errorf("Invalid config for auth.email.%s.content: please use content_path instead", name)
+			}
+			continue
+		}
+		if content, err := fs.ReadFile(fsys, tmpl.ContentPath); err != nil {
+			return errors.Errorf("Invalid config for auth.email.%s.content_path: %w", name, err)
+		} else {
+			tmpl.Content = cast.Ptr(string(content))
+		}
+		e.Template[name] = tmpl
+	}
+	if e.Smtp != nil && e.Smtp.IsEnabled() {
+		if len(e.Smtp.Host) == 0 {
+			return errors.New("Missing required field in config: auth.email.smtp.host")
+		}
+		if e.Smtp.Port == 0 {
+			return errors.New("Missing required field in config: auth.email.smtp.port")
+		}
+		if len(e.Smtp.User) == 0 {
+			return errors.New("Missing required field in config: auth.email.smtp.user")
+		}
+		if len(e.Smtp.Pass.Value) == 0 {
+			return errors.New("Missing required field in config: auth.email.smtp.pass")
+		}
+		if len(e.Smtp.AdminEmail) == 0 {
+			return errors.New("Missing required field in config: auth.email.smtp.admin_email")
+		}
+		if err := assertEnvLoaded(e.Smtp.Pass.Value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *sms) validate() (err error) {
+	switch {
+	case s.Twilio.Enabled:
+		if len(s.Twilio.AccountSid) == 0 {
+			return errors.New("Missing required field in config: auth.sms.twilio.account_sid")
+		}
+		if len(s.Twilio.MessageServiceSid) == 0 {
+			return errors.New("Missing required field in config: auth.sms.twilio.message_service_sid")
+		}
+		if len(s.Twilio.AuthToken.Value) == 0 {
+			return errors.New("Missing required field in config: auth.sms.twilio.auth_token")
+		}
+		if err := assertEnvLoaded(s.Twilio.AuthToken.Value); err != nil {
+			return err
+		}
+	case s.TwilioVerify.Enabled:
+		if len(s.TwilioVerify.AccountSid) == 0 {
+			return errors.New("Missing required field in config: auth.sms.twilio_verify.account_sid")
+		}
+		if len(s.TwilioVerify.MessageServiceSid) == 0 {
+			return errors.New("Missing required field in config: auth.sms.twilio_verify.message_service_sid")
+		}
+		if len(s.TwilioVerify.AuthToken.Value) == 0 {
+			return errors.New("Missing required field in config: auth.sms.twilio_verify.auth_token")
+		}
+		if err := assertEnvLoaded(s.TwilioVerify.AuthToken.Value); err != nil {
+			return err
+		}
+	case s.Messagebird.Enabled:
+		if len(s.Messagebird.Originator) == 0 {
+			return errors.New("Missing required field in config: auth.sms.messagebird.originator")
+		}
+		if len(s.Messagebird.AccessKey.Value) == 0 {
+			return errors.New("Missing required field in config: auth.sms.messagebird.access_key")
+		}
+		if err := assertEnvLoaded(s.Messagebird.AccessKey.Value); err != nil {
+			return err
+		}
+	case s.Textlocal.Enabled:
+		if len(s.Textlocal.Sender) == 0 {
+			return errors.New("Missing required field in config: auth.sms.textlocal.sender")
+		}
+		if len(s.Textlocal.ApiKey.Value) == 0 {
+			return errors.New("Missing required field in config: auth.sms.textlocal.api_key")
+		}
+		if err := assertEnvLoaded(s.Textlocal.ApiKey.Value); err != nil {
+			return err
+		}
+	case s.Vonage.Enabled:
+		if len(s.Vonage.From) == 0 {
+			return errors.New("Missing required field in config: auth.sms.vonage.from")
+		}
+		if len(s.Vonage.ApiKey) == 0 {
+			return errors.New("Missing required field in config: auth.sms.vonage.api_key")
+		}
+		if len(s.Vonage.ApiSecret.Value) == 0 {
+			return errors.New("Missing required field in config: auth.sms.vonage.api_secret")
+		}
+		if err := assertEnvLoaded(s.Vonage.ApiKey); err != nil {
+			return err
+		}
+		if err := assertEnvLoaded(s.Vonage.ApiSecret.Value); err != nil {
+			return err
+		}
+	case s.EnableSignup:
+		s.EnableSignup = false
+		fmt.Fprintln(os.Stderr, "WARN: no SMS provider is enabled. Disabling phone login")
+	}
+	return nil
+}
+
+func (e external) validate() (err error) {
+	for _, ext := range []string{"linkedin", "slack"} {
+		if e[ext].Enabled {
+			fmt.Fprintf(os.Stderr, `WARN: disabling deprecated "%[1]s" provider. Please use [auth.external.%[1]s_oidc] instead\n`, ext)
+		}
+		delete(e, ext)
+	}
+	for ext, provider := range e {
+		if !provider.Enabled {
+			continue
+		}
+		if provider.ClientId == "" {
+			return errors.Errorf("Missing required field in config: auth.external.%s.client_id", ext)
+		}
+		if !sliceContains([]string{"apple", "google"}, ext) && len(provider.Secret.Value) == 0 {
+			return errors.Errorf("Missing required field in config: auth.external.%s.secret", ext)
+		}
+		if err := assertEnvLoaded(provider.ClientId); err != nil {
+			return err
+		}
+		if err := assertEnvLoaded(provider.Secret.Value); err != nil {
+			return err
+		}
+		if err := assertEnvLoaded(provider.RedirectUri); err != nil {
+			return err
+		}
+		if err := assertEnvLoaded(provider.Url); err != nil {
+			return err
+		}
+		e[ext] = provider
+	}
+	return nil
+}
+
+func (h *hook) validate() error {
+	if hook := h.MFAVerificationAttempt; hook != nil {
+		if err := hook.validate("mfa_verification_attempt"); err != nil {
+			return err
+		}
+	}
+	if hook := h.PasswordVerificationAttempt; hook != nil {
+		if err := hook.validate("password_verification_attempt"); err != nil {
+			return err
+		}
+	}
+	if hook := h.CustomAccessToken; hook != nil {
+		if err := hook.validate("custom_access_token"); err != nil {
+			return err
+		}
+	}
+	if hook := h.SendSMS; hook != nil {
+		if err := hook.validate("send_sms"); err != nil {
+			return err
+		}
+	}
+	if hook := h.SendEmail; hook != nil {
+		if err := h.SendEmail.validate("send_email"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var hookSecretPattern = regexp.MustCompile(`^v1,whsec_[A-Za-z0-9+/=]{32,88}$`)
+
+func (h *hookConfig) validate(hookType string) (err error) {
 	// If not enabled do nothing
 	if !h.Enabled {
 		return nil
 	}
 	if h.URI == "" {
-		return errors.Errorf("missing required field in config: auth.hook.%s.uri", hookType)
+		return errors.Errorf("Missing required field in config: auth.hook.%s.uri", hookType)
 	}
-	if err := validateHookURI(h.URI, hookType); err != nil {
-		return err
+	parsed, err := url.Parse(h.URI)
+	if err != nil {
+		return errors.Errorf("failed to parse template url: %w", err)
 	}
-	var err error
-	if h.Secrets, err = maybeLoadEnv(h.Secrets); err != nil {
-		return errors.Errorf("missing required field in config: auth.hook.%s.secrets", hookType)
+	switch strings.ToLower(parsed.Scheme) {
+	case "http", "https":
+		if len(h.Secrets.Value) == 0 {
+			return errors.Errorf("Missing required field in config: auth.hook.%s.secrets", hookType)
+		} else if err := assertEnvLoaded(h.Secrets.Value); err != nil {
+			return err
+		}
+		for _, secret := range strings.Split(h.Secrets.Value, "|") {
+			if !hookSecretPattern.MatchString(secret) {
+				return errors.Errorf(`Invalid hook config: auth.hook.%s.secrets must be formatted as "v1,whsec_<base64_encoded_secret>" with a minimum length of 32 characters.`, hookType)
+			}
+		}
+	case "pg-functions":
+		if len(h.Secrets.Value) > 0 {
+			return errors.Errorf("Invalid hook config: auth.hook.%s.secrets is unsupported for pg-functions URI", hookType)
+		}
+	default:
+		return errors.Errorf("Invalid hook config: auth.hook.%s.uri should be a HTTP, HTTPS, or pg-functions URI", hookType)
 	}
 	return nil
 }
 
-func validateHookURI(uri, hookName string) error {
-	parsed, err := url.Parse(uri)
-	if err != nil {
-		return errors.Errorf("failed to parse template url: %w", err)
+func (m *mfa) validate() error {
+	if m.TOTP.EnrollEnabled && !m.TOTP.VerifyEnabled {
+		return errors.Errorf("Invalid MFA config: auth.mfa.totp.enroll_enabled requires verify_enabled")
 	}
-	if !(parsed.Scheme == "http" || parsed.Scheme == "https" || parsed.Scheme == "pg-functions") {
-		return errors.Errorf("Invalid HTTP hook config: auth.hook.%v should be a Postgres function URI, or a HTTP or HTTPS URL", hookName)
+	if m.Phone.EnrollEnabled && !m.Phone.VerifyEnabled {
+		return errors.Errorf("Invalid MFA config: auth.mfa.phone.enroll_enabled requires verify_enabled")
+	}
+	if m.WebAuthn.EnrollEnabled && !m.WebAuthn.VerifyEnabled {
+		return errors.Errorf("Invalid MFA config: auth.mfa.web_authn.enroll_enabled requires verify_enabled")
 	}
 	return nil
 }
@@ -1068,13 +1164,17 @@ func (c *tpaCognito) issuerURL() string {
 	return fmt.Sprintf("https://cognito-idp.%s.amazonaws.com/%s", c.UserPoolRegion, c.UserPoolID)
 }
 
-func (c *tpaCognito) validate() error {
+func (c *tpaCognito) validate() (err error) {
 	if c.UserPoolID == "" {
 		return errors.New("Invalid config: auth.third_party.cognito is enabled but without a user_pool_id.")
+	} else if err := assertEnvLoaded(c.UserPoolID); err != nil {
+		return err
 	}
 
 	if c.UserPoolRegion == "" {
 		return errors.New("Invalid config: auth.third_party.cognito is enabled but without a user_pool_region.")
+	} else if err := assertEnvLoaded(c.UserPoolRegion); err != nil {
+		return err
 	}
 
 	return nil
@@ -1215,4 +1315,49 @@ func (a *auth) ResolveJWKS(ctx context.Context) (string, error) {
 	}
 
 	return string(jwksEncoded), nil
+}
+
+func (c *baseConfig) GetServiceImages() []string {
+	return []string{
+		c.Db.Image,
+		c.Auth.Image,
+		c.Api.Image,
+		c.Realtime.Image,
+		c.Storage.Image,
+		c.EdgeRuntime.Image,
+		c.Studio.Image,
+		c.Studio.PgmetaImage,
+		c.Analytics.Image,
+		c.Db.Pooler.Image,
+	}
+}
+
+// Retrieve the final base config to use taking into account the remotes override
+// Pre: config must be loaded after setting config.ProjectID = "ref"
+func (c *config) GetRemoteByProjectRef(projectRef string) (baseConfig, error) {
+	base := c.baseConfig.Clone()
+	for _, remote := range c.Remotes {
+		if remote.ProjectId == projectRef {
+			base.ProjectId = projectRef
+			return base, nil
+		}
+	}
+	return base, errors.Errorf("no remote found for project_id: %s", projectRef)
+}
+
+func ToTomlBytes(config any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := toml.NewEncoder(&buf)
+	enc.Indent = ""
+	if err := enc.Encode(config); err != nil {
+		return nil, errors.Errorf("failed to marshal toml config: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+func (e *experimental) validate() error {
+	if e.Webhooks != nil && !e.Webhooks.Enabled {
+		return errors.Errorf("Webhooks cannot be deactivated. [experimental.webhooks] enabled can either be true or left undefined")
+	}
+	return nil
 }

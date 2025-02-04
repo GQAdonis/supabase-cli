@@ -1,6 +1,10 @@
 package config
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"path/filepath"
 	"strings"
 )
@@ -29,7 +33,6 @@ type pathBuilder struct {
 	FallbackImportMapPath string
 	FallbackEnvFilePath   string
 	DbTestsDir            string
-	SeedDataPath          string
 	CustomRolesPath       string
 }
 
@@ -63,7 +66,6 @@ func NewPathBuilder(configPath string) pathBuilder {
 		FallbackImportMapPath: filepath.Join(base, "functions", "import_map.json"),
 		FallbackEnvFilePath:   filepath.Join(base, "functions", ".env"),
 		DbTestsDir:            filepath.Join(base, "tests"),
-		SeedDataPath:          filepath.Join(base, "seed.sql"),
 		CustomRolesPath:       filepath.Join(base, "roles.sql"),
 	}
 }
@@ -80,4 +82,38 @@ func sliceContains[T comparable](s []T, e T) bool {
 func replaceImageTag(image string, tag string) string {
 	index := strings.IndexByte(image, ':')
 	return image[:index+1] + strings.TrimSpace(tag)
+}
+
+func strToArr(v string) []string {
+	// Avoid returning [""] if v is empty
+	if len(v) == 0 {
+		return nil
+	}
+	return strings.Split(v, ",")
+}
+
+func mapToEnv(input map[string]string) string {
+	var result []string
+	for k, v := range input {
+		kv := fmt.Sprintf("%s=%s", k, v)
+		result = append(result, kv)
+	}
+	return strings.Join(result, ",")
+}
+
+func envToMap(input string) map[string]string {
+	env := strToArr(input)
+	result := make(map[string]string, len(env))
+	for _, kv := range env {
+		if parts := strings.Split(kv, "="); len(parts) > 1 {
+			result[parts[0]] = parts[1]
+		}
+	}
+	return result
+}
+
+func sha256Hmac(key, value string) string {
+	h := hmac.New(sha256.New, []byte(key))
+	h.Write([]byte(value))
+	return hex.EncodeToString(h.Sum(nil))
 }

@@ -9,16 +9,15 @@ import (
 	"github.com/spf13/afero"
 	"github.com/supabase/cli/internal/utils"
 	"github.com/supabase/cli/internal/utils/credentials"
-	"github.com/supabase/cli/internal/utils/flags"
 	"github.com/zalando/go-keyring"
 )
 
 func Run(ctx context.Context, fsys afero.Fs) error {
-	projectRef, err := flags.LoadProjectRef(fsys)
-	if err != nil {
-		return err
-	}
-	if err := Unlink(projectRef, fsys); err != nil {
+	if projectRef, err := afero.ReadFile(fsys, utils.ProjectRefPath); errors.Is(err, os.ErrNotExist) {
+		return errors.New(utils.ErrNotLinked)
+	} else if err != nil {
+		return errors.Errorf("failed to load project ref: %w", err)
+	} else if err := Unlink(string(projectRef), fsys); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stdout, "Finished "+utils.Aqua("supabase unlink")+".")
@@ -34,7 +33,7 @@ func Unlink(projectRef string, fsys afero.Fs) error {
 		allErrors = append(allErrors, wrapped)
 	}
 	// Remove linked credentials
-	if err := credentials.Delete(projectRef); err != nil &&
+	if err := credentials.StoreProvider.Delete(projectRef); err != nil &&
 		!errors.Is(err, credentials.ErrNotSupported) &&
 		!errors.Is(err, keyring.ErrNotFound) {
 		allErrors = append(allErrors, err)

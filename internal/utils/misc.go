@@ -31,17 +31,7 @@ func ShortContainerImageName(imageName string) string {
 	return matches[1]
 }
 
-const (
-	// https://dba.stackexchange.com/a/11895
-	// Args: dbname
-	TerminateDbSqlFmt = `
-SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '%[1]s';
--- Wait for WAL sender to drop replication slot.
-DO 'BEGIN WHILE (
-	SELECT COUNT(*) FROM pg_replication_slots WHERE database = ''%[1]s''
-) > 0 LOOP END LOOP; END';`
-	SuggestDebugFlag = "Try rerunning the command with --debug to troubleshoot the error."
-)
+const SuggestDebugFlag = "Try rerunning the command with --debug to troubleshoot the error."
 
 var (
 	CmdSuggestion string
@@ -84,6 +74,7 @@ var (
 		"graphql",
 		"graphql_public",
 		"net",
+		"pgmq",
 		"pgsodium",
 		"pgsodium_masks",
 		"pgtle",
@@ -148,7 +139,6 @@ var (
 	FallbackImportMapPath = filepath.Join(FunctionsDir, "import_map.json")
 	FallbackEnvFilePath   = filepath.Join(FunctionsDir, ".env")
 	DbTestsDir            = filepath.Join(SupabaseDirPath, "tests")
-	SeedDataPath          = filepath.Join(SupabaseDirPath, "seed.sql")
 	CustomRolesPath       = filepath.Join(SupabaseDirPath, "roles.sql")
 
 	ErrNotLinked   = errors.Errorf("Cannot find project ref. Have you run %s?", Aqua("supabase link"))
@@ -294,10 +284,6 @@ func ValidateFunctionSlug(slug string) error {
 	}
 
 	return nil
-}
-
-func Ptr[T any](v T) *T {
-	return &v
 }
 
 func GetHostname() string {

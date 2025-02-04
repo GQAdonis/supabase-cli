@@ -12,11 +12,9 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/go-errors/errors"
-	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/supabase/cli/internal/services"
 	"github.com/supabase/cli/internal/utils"
 	"github.com/supabase/cli/internal/utils/flags"
 	"golang.org/x/mod/semver"
@@ -223,18 +221,8 @@ func recoverAndExit() {
 
 func init() {
 	cobra.OnInitialize(func() {
-		// Allow overriding config object with automatic env
-		// Ref: https://github.com/spf13/viper/issues/761
-		envKeysMap := map[string]interface{}{}
-		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-			Result:               &envKeysMap,
-			IgnoreUntaggedFields: true,
-		})
-		cobra.CheckErr(err)
-		cobra.CheckErr(dec.Decode(utils.Config))
-		cobra.CheckErr(viper.MergeConfigMap(envKeysMap))
 		viper.SetEnvPrefix("SUPABASE")
-		viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
+		viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 		viper.AutomaticEnv()
 	})
 
@@ -243,6 +231,7 @@ func init() {
 	flags.String("workdir", "", "path to a Supabase project directory")
 	flags.Bool("experimental", false, "enable experimental features")
 	flags.String("network-id", "", "use the specified docker network instead of a generated one")
+	flags.Var(&utils.OutputFormat, "output", "output format of status variables")
 	flags.Var(&utils.DNSResolver, "dns-resolver", "lookup domain names using the specified resolver")
 	flags.BoolVar(&createTicket, "create-ticket", false, "create a support ticket for any CLI error")
 	cobra.CheckErr(viper.BindPFlags(flags))
@@ -260,7 +249,7 @@ func GetRootCmd() *cobra.Command {
 }
 
 func addSentryScope(scope *sentry.Scope) {
-	serviceImages := services.GetServiceImages()
+	serviceImages := utils.Config.GetServiceImages()
 	imageToVersion := make(map[string]interface{}, len(serviceImages))
 	for _, image := range serviceImages {
 		parts := strings.Split(image, ":")

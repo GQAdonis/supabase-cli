@@ -9,11 +9,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/go-errors/errors"
 	"github.com/spf13/afero"
 	"github.com/supabase/cli/internal/utils"
+	"github.com/supabase/cli/internal/utils/flags"
 )
 
 var (
@@ -22,7 +23,7 @@ var (
 )
 
 func Run(branch string, fsys afero.Fs) error {
-	if err := utils.LoadConfigFS(fsys); err != nil {
+	if err := flags.LoadConfig(fsys); err != nil {
 		return err
 	}
 	if err := utils.AssertSupabaseDbIsRunning(); err != nil {
@@ -70,7 +71,7 @@ func assertNewBranchIsValid(branchPath string, fsys afero.Fs) error {
 }
 
 func createBranch(ctx context.Context, branch string) error {
-	exec, err := utils.Docker.ContainerExecCreate(ctx, utils.DbId, types.ExecConfig{
+	exec, err := utils.Docker.ContainerExecCreate(ctx, utils.DbId, container.ExecOptions{
 		Cmd:          []string{"/bin/bash", "-c", cloneScript},
 		Env:          []string{"DB_NAME=" + branch},
 		AttachStderr: true,
@@ -80,7 +81,7 @@ func createBranch(ctx context.Context, branch string) error {
 		return err
 	}
 	// Read exec output
-	resp, err := utils.Docker.ContainerExecAttach(ctx, exec.ID, types.ExecStartCheck{})
+	resp, err := utils.Docker.ContainerExecAttach(ctx, exec.ID, container.ExecStartOptions{})
 	if err != nil {
 		return err
 	}

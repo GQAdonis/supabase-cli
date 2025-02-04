@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/h2non/gock"
 	"github.com/jackc/pgconn"
@@ -36,7 +37,7 @@ func TestStartCommand(t *testing.T) {
 		// Run test
 		err := Run(context.Background(), fsys, []string{}, false)
 		// Check error
-		assert.ErrorContains(t, err, "toml: line 0: unexpected EOF; expected key separator '='")
+		assert.ErrorContains(t, err, "toml: expected = after a key, but the document ends there")
 	})
 
 	t.Run("throws error on missing docker", func(t *testing.T) {
@@ -56,7 +57,13 @@ func TestStartCommand(t *testing.T) {
 		assert.Empty(t, apitest.ListUnmatchedRequests())
 	})
 
-	t.Run("noop if database is already running", func(t *testing.T) {
+	t.Run("show status if database is already running", func(t *testing.T) {
+		var running []types.Container
+		for _, name := range utils.GetDockerIds() {
+			running = append(running, types.Container{
+				Names: []string{name + "_test"},
+			})
+		}
 		// Setup in-memory fs
 		fsys := afero.NewMemMapFs()
 		require.NoError(t, utils.WriteConfig(fsys, false))
@@ -67,6 +74,17 @@ func TestStartCommand(t *testing.T) {
 			Get("/v" + utils.Docker.ClientVersion() + "/containers").
 			Reply(http.StatusOK).
 			JSON(types.ContainerJSON{})
+
+		gock.New(utils.Docker.DaemonHost()).
+			Get("/v" + utils.Docker.ClientVersion() + "/containers/supabase_db_start/json").
+			Reply(http.StatusOK).
+			JSON(types.ContainerJSON{ContainerJSONBase: &types.ContainerJSONBase{
+				State: &types.ContainerState{Running: true},
+			}})
+		gock.New(utils.Docker.DaemonHost()).
+			Get("/v" + utils.Docker.ClientVersion() + "/containers/json").
+			Reply(http.StatusOK).
+			JSON(running)
 		// Run test
 		err := Run(context.Background(), fsys, []string{}, false)
 		// Check error
@@ -85,7 +103,7 @@ func TestDatabaseStart(t *testing.T) {
 		gock.New(utils.Docker.DaemonHost()).
 			Post("/v" + utils.Docker.ClientVersion() + "/networks/create").
 			Reply(http.StatusCreated).
-			JSON(types.NetworkCreateResponse{})
+			JSON(network.CreateResponse{})
 		// Caches all dependencies
 		imageUrl := utils.GetRegistryImageUrl(utils.Config.Db.Image)
 		gock.New(utils.Docker.DaemonHost()).
@@ -132,7 +150,7 @@ func TestDatabaseStart(t *testing.T) {
 		utils.StorageId = "test-storage"
 		apitest.MockDockerStart(utils.Docker, utils.GetRegistryImageUrl(utils.Config.Storage.Image), utils.StorageId)
 		utils.ImgProxyId = "test-imgproxy"
-		apitest.MockDockerStart(utils.Docker, utils.GetRegistryImageUrl(utils.Config.Storage.ImageTransformation.Image), utils.ImgProxyId)
+		apitest.MockDockerStart(utils.Docker, utils.GetRegistryImageUrl(utils.Config.Storage.ImgProxyImage), utils.ImgProxyId)
 		utils.EdgeRuntimeId = "test-edge-runtime"
 		apitest.MockDockerStart(utils.Docker, utils.GetRegistryImageUrl(utils.Config.EdgeRuntime.Image), utils.EdgeRuntimeId)
 		utils.PgmetaId = "test-pgmeta"
@@ -159,7 +177,7 @@ func TestDatabaseStart(t *testing.T) {
 				JSON(types.ContainerJSON{ContainerJSONBase: &types.ContainerJSONBase{
 					State: &types.ContainerState{
 						Running: true,
-						Health:  &types.Health{Status: "healthy"},
+						Health:  &types.Health{Status: types.Healthy},
 					},
 				}})
 		}
@@ -176,7 +194,7 @@ func TestDatabaseStart(t *testing.T) {
 			JSON(types.ContainerJSON{ContainerJSONBase: &types.ContainerJSONBase{
 				State: &types.ContainerState{
 					Running: true,
-					Health:  &types.Health{Status: "healthy"},
+					Health:  &types.Health{Status: types.Healthy},
 				},
 			}})
 		gock.New(utils.Config.Api.ExternalUrl).
@@ -201,7 +219,7 @@ func TestDatabaseStart(t *testing.T) {
 		gock.New(utils.Docker.DaemonHost()).
 			Post("/v" + utils.Docker.ClientVersion() + "/networks/create").
 			Reply(http.StatusCreated).
-			JSON(types.NetworkCreateResponse{})
+			JSON(network.CreateResponse{})
 		// Caches all dependencies
 		imageUrl := utils.GetRegistryImageUrl(utils.Config.Db.Image)
 		gock.New(utils.Docker.DaemonHost()).
@@ -224,7 +242,7 @@ func TestDatabaseStart(t *testing.T) {
 			JSON(types.ContainerJSON{ContainerJSONBase: &types.ContainerJSONBase{
 				State: &types.ContainerState{
 					Running: true,
-					Health:  &types.Health{Status: "healthy"},
+					Health:  &types.Health{Status: types.Healthy},
 				},
 			}})
 		// Run test

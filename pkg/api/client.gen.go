@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
@@ -100,11 +101,19 @@ type ClientInterface interface {
 
 	V1UpdateABranchConfig(ctx context.Context, branchId string, body V1UpdateABranchConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// V1PushABranch request
+	V1PushABranch(ctx context.Context, branchId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// V1ResetABranch request
 	V1ResetABranch(ctx context.Context, branchId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// V1AuthorizeUser request
 	V1AuthorizeUser(ctx context.Context, params *V1AuthorizeUserParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// V1RevokeTokenWithBody request with any body
+	V1RevokeTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	V1RevokeToken(ctx context.Context, body V1RevokeTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// V1ExchangeOauthTokenWithBody request with any body
 	V1ExchangeOauthTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -136,8 +145,30 @@ type ClientInterface interface {
 	// V1DeleteAProject request
 	V1DeleteAProject(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// V1GetProject request
+	V1GetProject(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetLogs request
+	GetLogs(ctx context.Context, ref string, params *GetLogsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// V1GetProjectApiKeys request
-	V1GetProjectApiKeys(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	V1GetProjectApiKeys(ctx context.Context, ref string, params *V1GetProjectApiKeysParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateApiKeyWithBody request with any body
+	CreateApiKeyWithBody(ctx context.Context, ref string, params *CreateApiKeyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateApiKey(ctx context.Context, ref string, params *CreateApiKeyParams, body CreateApiKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteApiKey request
+	DeleteApiKey(ctx context.Context, ref string, id string, params *DeleteApiKeyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiKey request
+	GetApiKey(ctx context.Context, ref string, id string, params *GetApiKeyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateApiKeyWithBody request with any body
+	UpdateApiKeyWithBody(ctx context.Context, ref string, id string, params *UpdateApiKeyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateApiKey(ctx context.Context, ref string, id string, params *UpdateApiKeyParams, body UpdateApiKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// V1DisablePreviewBranching request
 	V1DisablePreviewBranching(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -210,6 +241,14 @@ type ClientInterface interface {
 
 	V1UpdatePostgresConfig(ctx context.Context, ref string, body V1UpdatePostgresConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// V1GetStorageConfig request
+	V1GetStorageConfig(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// V1UpdateStorageConfigWithBody request with any body
+	V1UpdateStorageConfigWithBody(ctx context.Context, ref string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	V1UpdateStorageConfig(ctx context.Context, ref string, body V1UpdateStorageConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// V1DeleteHostnameConfig request
 	V1DeleteHostnameConfig(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -246,10 +285,10 @@ type ClientInterface interface {
 	// V1ListAllFunctions request
 	V1ListAllFunctions(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateFunctionWithBody request with any body
-	CreateFunctionWithBody(ctx context.Context, ref string, params *CreateFunctionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// V1CreateAFunctionWithBody request with any body
+	V1CreateAFunctionWithBody(ctx context.Context, ref string, params *V1CreateAFunctionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	CreateFunction(ctx context.Context, ref string, params *CreateFunctionParams, body CreateFunctionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	V1CreateAFunction(ctx context.Context, ref string, params *V1CreateAFunctionParams, body V1CreateAFunctionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// V1DeleteAFunction request
 	V1DeleteAFunction(ctx context.Context, ref string, functionSlug string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -284,6 +323,9 @@ type ClientInterface interface {
 
 	V1UpdateNetworkRestrictions(ctx context.Context, ref string, body V1UpdateNetworkRestrictionsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// V1PauseAProject request
+	V1PauseAProject(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// V1GetPgsodiumConfig request
 	V1GetPgsodiumConfig(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -315,6 +357,17 @@ type ClientInterface interface {
 
 	// V1DisableReadonlyModeTemporarily request
 	V1DisableReadonlyModeTemporarily(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// V1ListAvailableRestoreVersions request
+	V1ListAvailableRestoreVersions(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// V1RestoreAProjectWithBody request with any body
+	V1RestoreAProjectWithBody(ctx context.Context, ref string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	V1RestoreAProject(ctx context.Context, ref string, body V1RestoreAProjectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// V1CancelAProjectRestoration request
+	V1CancelAProjectRestoration(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// V1BulkDeleteSecretsWithBody request with any body
 	V1BulkDeleteSecretsWithBody(ctx context.Context, ref string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -348,11 +401,11 @@ type ClientInterface interface {
 
 	V1UpgradePostgresVersion(ctx context.Context, ref string, body V1UpgradePostgresVersionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// V1GetPostgrestUpgradeEligibility request
-	V1GetPostgrestUpgradeEligibility(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// V1GetPostgresUpgradeEligibility request
+	V1GetPostgresUpgradeEligibility(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// V1GetPostgrestUpgradeStatus request
-	V1GetPostgrestUpgradeStatus(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// V1GetPostgresUpgradeStatus request
+	V1GetPostgresUpgradeStatus(ctx context.Context, ref string, params *V1GetPostgresUpgradeStatusParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// V1DeactivateVanitySubdomainConfig request
 	V1DeactivateVanitySubdomainConfig(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -374,7 +427,7 @@ type ClientInterface interface {
 	V1ListAllSnippets(ctx context.Context, params *V1ListAllSnippetsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// V1GetASnippet request
-	V1GetASnippet(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	V1GetASnippet(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) V1DeleteABranch(ctx context.Context, branchId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -425,6 +478,18 @@ func (c *Client) V1UpdateABranchConfig(ctx context.Context, branchId string, bod
 	return c.Client.Do(req)
 }
 
+func (c *Client) V1PushABranch(ctx context.Context, branchId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1PushABranchRequest(c.Server, branchId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) V1ResetABranch(ctx context.Context, branchId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewV1ResetABranchRequest(c.Server, branchId)
 	if err != nil {
@@ -439,6 +504,30 @@ func (c *Client) V1ResetABranch(ctx context.Context, branchId string, reqEditors
 
 func (c *Client) V1AuthorizeUser(ctx context.Context, params *V1AuthorizeUserParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewV1AuthorizeUserRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) V1RevokeTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1RevokeTokenRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) V1RevokeToken(ctx context.Context, body V1RevokeTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1RevokeTokenRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -581,8 +670,104 @@ func (c *Client) V1DeleteAProject(ctx context.Context, ref string, reqEditors ..
 	return c.Client.Do(req)
 }
 
-func (c *Client) V1GetProjectApiKeys(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewV1GetProjectApiKeysRequest(c.Server, ref)
+func (c *Client) V1GetProject(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1GetProjectRequest(c.Server, ref)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetLogs(ctx context.Context, ref string, params *GetLogsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetLogsRequest(c.Server, ref, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) V1GetProjectApiKeys(ctx context.Context, ref string, params *V1GetProjectApiKeysParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1GetProjectApiKeysRequest(c.Server, ref, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateApiKeyWithBody(ctx context.Context, ref string, params *CreateApiKeyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateApiKeyRequestWithBody(c.Server, ref, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateApiKey(ctx context.Context, ref string, params *CreateApiKeyParams, body CreateApiKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateApiKeyRequest(c.Server, ref, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteApiKey(ctx context.Context, ref string, id string, params *DeleteApiKeyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteApiKeyRequest(c.Server, ref, id, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiKey(ctx context.Context, ref string, id string, params *GetApiKeyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiKeyRequest(c.Server, ref, id, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateApiKeyWithBody(ctx context.Context, ref string, id string, params *UpdateApiKeyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateApiKeyRequestWithBody(c.Server, ref, id, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateApiKey(ctx context.Context, ref string, id string, params *UpdateApiKeyParams, body UpdateApiKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateApiKeyRequest(c.Server, ref, id, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -905,6 +1090,42 @@ func (c *Client) V1UpdatePostgresConfig(ctx context.Context, ref string, body V1
 	return c.Client.Do(req)
 }
 
+func (c *Client) V1GetStorageConfig(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1GetStorageConfigRequest(c.Server, ref)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) V1UpdateStorageConfigWithBody(ctx context.Context, ref string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1UpdateStorageConfigRequestWithBody(c.Server, ref, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) V1UpdateStorageConfig(ctx context.Context, ref string, body V1UpdateStorageConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1UpdateStorageConfigRequest(c.Server, ref, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) V1DeleteHostnameConfig(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewV1DeleteHostnameConfigRequest(c.Server, ref)
 	if err != nil {
@@ -1061,8 +1282,8 @@ func (c *Client) V1ListAllFunctions(ctx context.Context, ref string, reqEditors 
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateFunctionWithBody(ctx context.Context, ref string, params *CreateFunctionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateFunctionRequestWithBody(c.Server, ref, params, contentType, body)
+func (c *Client) V1CreateAFunctionWithBody(ctx context.Context, ref string, params *V1CreateAFunctionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1CreateAFunctionRequestWithBody(c.Server, ref, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1073,8 +1294,8 @@ func (c *Client) CreateFunctionWithBody(ctx context.Context, ref string, params 
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateFunction(ctx context.Context, ref string, params *CreateFunctionParams, body CreateFunctionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateFunctionRequest(c.Server, ref, params, body)
+func (c *Client) V1CreateAFunction(ctx context.Context, ref string, params *V1CreateAFunctionParams, body V1CreateAFunctionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1CreateAFunctionRequest(c.Server, ref, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1229,6 +1450,18 @@ func (c *Client) V1UpdateNetworkRestrictions(ctx context.Context, ref string, bo
 	return c.Client.Do(req)
 }
 
+func (c *Client) V1PauseAProject(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1PauseAProjectRequest(c.Server, ref)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) V1GetPgsodiumConfig(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewV1GetPgsodiumConfigRequest(c.Server, ref)
 	if err != nil {
@@ -1363,6 +1596,54 @@ func (c *Client) V1GetReadonlyModeStatus(ctx context.Context, ref string, reqEdi
 
 func (c *Client) V1DisableReadonlyModeTemporarily(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewV1DisableReadonlyModeTemporarilyRequest(c.Server, ref)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) V1ListAvailableRestoreVersions(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1ListAvailableRestoreVersionsRequest(c.Server, ref)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) V1RestoreAProjectWithBody(ctx context.Context, ref string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1RestoreAProjectRequestWithBody(c.Server, ref, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) V1RestoreAProject(ctx context.Context, ref string, body V1RestoreAProjectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1RestoreAProjectRequest(c.Server, ref, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) V1CancelAProjectRestoration(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1CancelAProjectRestorationRequest(c.Server, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -1517,8 +1798,8 @@ func (c *Client) V1UpgradePostgresVersion(ctx context.Context, ref string, body 
 	return c.Client.Do(req)
 }
 
-func (c *Client) V1GetPostgrestUpgradeEligibility(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewV1GetPostgrestUpgradeEligibilityRequest(c.Server, ref)
+func (c *Client) V1GetPostgresUpgradeEligibility(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1GetPostgresUpgradeEligibilityRequest(c.Server, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -1529,8 +1810,8 @@ func (c *Client) V1GetPostgrestUpgradeEligibility(ctx context.Context, ref strin
 	return c.Client.Do(req)
 }
 
-func (c *Client) V1GetPostgrestUpgradeStatus(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewV1GetPostgrestUpgradeStatusRequest(c.Server, ref)
+func (c *Client) V1GetPostgresUpgradeStatus(ctx context.Context, ref string, params *V1GetPostgresUpgradeStatusParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewV1GetPostgresUpgradeStatusRequest(c.Server, ref, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1625,7 +1906,7 @@ func (c *Client) V1ListAllSnippets(ctx context.Context, params *V1ListAllSnippet
 	return c.Client.Do(req)
 }
 
-func (c *Client) V1GetASnippet(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) V1GetASnippet(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewV1GetASnippetRequest(c.Server, id)
 	if err != nil {
 		return nil, err
@@ -1748,6 +2029,40 @@ func NewV1UpdateABranchConfigRequestWithBody(server string, branchId string, con
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewV1PushABranchRequest generates requests for V1PushABranch
+func NewV1PushABranchRequest(server string, branchId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "branch_id", runtime.ParamLocationPath, branchId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/branches/%s/push", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -1931,6 +2246,46 @@ func NewV1AuthorizeUserRequest(server string, params *V1AuthorizeUserParams) (*h
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewV1RevokeTokenRequest calls the generic V1RevokeToken builder with application/json body
+func NewV1RevokeTokenRequest(server string, body V1RevokeTokenJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewV1RevokeTokenRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewV1RevokeTokenRequestWithBody generates requests for V1RevokeToken with any type of body
+func NewV1RevokeTokenRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/oauth/revoke")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -2211,8 +2566,130 @@ func NewV1DeleteAProjectRequest(server string, ref string) (*http.Request, error
 	return req, nil
 }
 
+// NewV1GetProjectRequest generates requests for V1GetProject
+func NewV1GetProjectRequest(server string, ref string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetLogsRequest generates requests for GetLogs
+func NewGetLogsRequest(server string, ref string, params *GetLogsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/analytics/endpoints/logs.all", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.IsoTimestampEnd != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "iso_timestamp_end", runtime.ParamLocationQuery, *params.IsoTimestampEnd); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IsoTimestampStart != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "iso_timestamp_start", runtime.ParamLocationQuery, *params.IsoTimestampStart); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sql != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sql", runtime.ParamLocationQuery, *params.Sql); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewV1GetProjectApiKeysRequest generates requests for V1GetProjectApiKeys
-func NewV1GetProjectApiKeysRequest(server string, ref string) (*http.Request, error) {
+func NewV1GetProjectApiKeysRequest(server string, ref string, params *V1GetProjectApiKeysParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -2237,10 +2714,283 @@ func NewV1GetProjectApiKeysRequest(server string, ref string) (*http.Request, er
 		return nil, err
 	}
 
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "reveal", runtime.ParamLocationQuery, params.Reveal); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewCreateApiKeyRequest calls the generic CreateApiKey builder with application/json body
+func NewCreateApiKeyRequest(server string, ref string, params *CreateApiKeyParams, body CreateApiKeyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateApiKeyRequestWithBody(server, ref, params, "application/json", bodyReader)
+}
+
+// NewCreateApiKeyRequestWithBody generates requests for CreateApiKey with any type of body
+func NewCreateApiKeyRequestWithBody(server string, ref string, params *CreateApiKeyParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/api-keys", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "reveal", runtime.ParamLocationQuery, params.Reveal); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteApiKeyRequest generates requests for DeleteApiKey
+func NewDeleteApiKeyRequest(server string, ref string, id string, params *DeleteApiKeyParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/api-keys/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "reveal", runtime.ParamLocationQuery, params.Reveal); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiKeyRequest generates requests for GetApiKey
+func NewGetApiKeyRequest(server string, ref string, id string, params *GetApiKeyParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/api-keys/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "reveal", runtime.ParamLocationQuery, params.Reveal); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateApiKeyRequest calls the generic UpdateApiKey builder with application/json body
+func NewUpdateApiKeyRequest(server string, ref string, id string, params *UpdateApiKeyParams, body UpdateApiKeyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateApiKeyRequestWithBody(server, ref, id, params, "application/json", bodyReader)
+}
+
+// NewUpdateApiKeyRequestWithBody generates requests for UpdateApiKey with any type of body
+func NewUpdateApiKeyRequestWithBody(server string, ref string, id string, params *UpdateApiKeyParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/api-keys/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "reveal", runtime.ParamLocationQuery, params.Reveal); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -3017,6 +3767,87 @@ func NewV1UpdatePostgresConfigRequestWithBody(server string, ref string, content
 	return req, nil
 }
 
+// NewV1GetStorageConfigRequest generates requests for V1GetStorageConfig
+func NewV1GetStorageConfigRequest(server string, ref string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/config/storage", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewV1UpdateStorageConfigRequest calls the generic V1UpdateStorageConfig builder with application/json body
+func NewV1UpdateStorageConfigRequest(server string, ref string, body V1UpdateStorageConfigJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewV1UpdateStorageConfigRequestWithBody(server, ref, "application/json", bodyReader)
+}
+
+// NewV1UpdateStorageConfigRequestWithBody generates requests for V1UpdateStorageConfig with any type of body
+func NewV1UpdateStorageConfigRequestWithBody(server string, ref string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/config/storage", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewV1DeleteHostnameConfigRequest generates requests for V1DeleteHostnameConfig
 func NewV1DeleteHostnameConfigRequest(server string, ref string) (*http.Request, error) {
 	var err error
@@ -3396,19 +4227,19 @@ func NewV1ListAllFunctionsRequest(server string, ref string) (*http.Request, err
 	return req, nil
 }
 
-// NewCreateFunctionRequest calls the generic CreateFunction builder with application/json body
-func NewCreateFunctionRequest(server string, ref string, params *CreateFunctionParams, body CreateFunctionJSONRequestBody) (*http.Request, error) {
+// NewV1CreateAFunctionRequest calls the generic V1CreateAFunction builder with application/json body
+func NewV1CreateAFunctionRequest(server string, ref string, params *V1CreateAFunctionParams, body V1CreateAFunctionJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateFunctionRequestWithBody(server, ref, params, "application/json", bodyReader)
+	return NewV1CreateAFunctionRequestWithBody(server, ref, params, "application/json", bodyReader)
 }
 
-// NewCreateFunctionRequestWithBody generates requests for CreateFunction with any type of body
-func NewCreateFunctionRequestWithBody(server string, ref string, params *CreateFunctionParams, contentType string, body io.Reader) (*http.Request, error) {
+// NewV1CreateAFunctionRequestWithBody generates requests for V1CreateAFunction with any type of body
+func NewV1CreateAFunctionRequestWithBody(server string, ref string, params *V1CreateAFunctionParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -3519,6 +4350,22 @@ func NewCreateFunctionRequestWithBody(server string, ref string, params *CreateF
 		if params.ImportMapPath != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "import_map_path", runtime.ParamLocationQuery, *params.ImportMapPath); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ComputeMultiplier != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "compute_multiplier", runtime.ParamLocationQuery, *params.ComputeMultiplier); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -3757,6 +4604,22 @@ func NewV1UpdateAFunctionRequestWithBody(server string, ref string, functionSlug
 		if params.ImportMapPath != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "import_map_path", runtime.ParamLocationQuery, *params.ImportMapPath); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ComputeMultiplier != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "compute_multiplier", runtime.ParamLocationQuery, *params.ComputeMultiplier); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -4050,6 +4913,40 @@ func NewV1UpdateNetworkRestrictionsRequestWithBody(server string, ref string, co
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewV1PauseAProjectRequest generates requests for V1PauseAProject
+func NewV1PauseAProjectRequest(server string, ref string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/pause", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -4361,6 +5258,121 @@ func NewV1DisableReadonlyModeTemporarilyRequest(server string, ref string) (*htt
 	}
 
 	operationPath := fmt.Sprintf("/v1/projects/%s/readonly/temporary-disable", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewV1ListAvailableRestoreVersionsRequest generates requests for V1ListAvailableRestoreVersions
+func NewV1ListAvailableRestoreVersionsRequest(server string, ref string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/restore", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewV1RestoreAProjectRequest calls the generic V1RestoreAProject builder with application/json body
+func NewV1RestoreAProjectRequest(server string, ref string, body V1RestoreAProjectJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewV1RestoreAProjectRequestWithBody(server, ref, "application/json", bodyReader)
+}
+
+// NewV1RestoreAProjectRequestWithBody generates requests for V1RestoreAProject with any type of body
+func NewV1RestoreAProjectRequestWithBody(server string, ref string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/restore", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewV1CancelAProjectRestorationRequest generates requests for V1CancelAProjectRestoration
+func NewV1CancelAProjectRestorationRequest(server string, ref string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/restore/cancel", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -4724,8 +5736,8 @@ func NewV1UpgradePostgresVersionRequestWithBody(server string, ref string, conte
 	return req, nil
 }
 
-// NewV1GetPostgrestUpgradeEligibilityRequest generates requests for V1GetPostgrestUpgradeEligibility
-func NewV1GetPostgrestUpgradeEligibilityRequest(server string, ref string) (*http.Request, error) {
+// NewV1GetPostgresUpgradeEligibilityRequest generates requests for V1GetPostgresUpgradeEligibility
+func NewV1GetPostgresUpgradeEligibilityRequest(server string, ref string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -4758,8 +5770,8 @@ func NewV1GetPostgrestUpgradeEligibilityRequest(server string, ref string) (*htt
 	return req, nil
 }
 
-// NewV1GetPostgrestUpgradeStatusRequest generates requests for V1GetPostgrestUpgradeStatus
-func NewV1GetPostgrestUpgradeStatusRequest(server string, ref string) (*http.Request, error) {
+// NewV1GetPostgresUpgradeStatusRequest generates requests for V1GetPostgresUpgradeStatus
+func NewV1GetPostgresUpgradeStatusRequest(server string, ref string, params *V1GetPostgresUpgradeStatusParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -4782,6 +5794,28 @@ func NewV1GetPostgrestUpgradeStatusRequest(server string, ref string) (*http.Req
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.TrackingId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "tracking_id", runtime.ParamLocationQuery, *params.TrackingId); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -4976,6 +6010,70 @@ func NewV1ListAllSnippetsRequest(server string, params *V1ListAllSnippetsParams)
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.SortBy != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sort_by", runtime.ParamLocationQuery, *params.SortBy); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.SortOrder != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sort_order", runtime.ParamLocationQuery, *params.SortOrder); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.ProjectRef != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "project_ref", runtime.ParamLocationQuery, *params.ProjectRef); err != nil {
@@ -5004,7 +6102,7 @@ func NewV1ListAllSnippetsRequest(server string, params *V1ListAllSnippetsParams)
 }
 
 // NewV1GetASnippetRequest generates requests for V1GetASnippet
-func NewV1GetASnippetRequest(server string, id string) (*http.Request, error) {
+func NewV1GetASnippetRequest(server string, id openapi_types.UUID) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -5091,11 +6189,19 @@ type ClientWithResponsesInterface interface {
 
 	V1UpdateABranchConfigWithResponse(ctx context.Context, branchId string, body V1UpdateABranchConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*V1UpdateABranchConfigResponse, error)
 
+	// V1PushABranchWithResponse request
+	V1PushABranchWithResponse(ctx context.Context, branchId string, reqEditors ...RequestEditorFn) (*V1PushABranchResponse, error)
+
 	// V1ResetABranchWithResponse request
 	V1ResetABranchWithResponse(ctx context.Context, branchId string, reqEditors ...RequestEditorFn) (*V1ResetABranchResponse, error)
 
 	// V1AuthorizeUserWithResponse request
 	V1AuthorizeUserWithResponse(ctx context.Context, params *V1AuthorizeUserParams, reqEditors ...RequestEditorFn) (*V1AuthorizeUserResponse, error)
+
+	// V1RevokeTokenWithBodyWithResponse request with any body
+	V1RevokeTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*V1RevokeTokenResponse, error)
+
+	V1RevokeTokenWithResponse(ctx context.Context, body V1RevokeTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*V1RevokeTokenResponse, error)
 
 	// V1ExchangeOauthTokenWithBodyWithResponse request with any body
 	V1ExchangeOauthTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*V1ExchangeOauthTokenResponse, error)
@@ -5127,8 +6233,30 @@ type ClientWithResponsesInterface interface {
 	// V1DeleteAProjectWithResponse request
 	V1DeleteAProjectWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1DeleteAProjectResponse, error)
 
+	// V1GetProjectWithResponse request
+	V1GetProjectWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetProjectResponse, error)
+
+	// GetLogsWithResponse request
+	GetLogsWithResponse(ctx context.Context, ref string, params *GetLogsParams, reqEditors ...RequestEditorFn) (*GetLogsResponse, error)
+
 	// V1GetProjectApiKeysWithResponse request
-	V1GetProjectApiKeysWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetProjectApiKeysResponse, error)
+	V1GetProjectApiKeysWithResponse(ctx context.Context, ref string, params *V1GetProjectApiKeysParams, reqEditors ...RequestEditorFn) (*V1GetProjectApiKeysResponse, error)
+
+	// CreateApiKeyWithBodyWithResponse request with any body
+	CreateApiKeyWithBodyWithResponse(ctx context.Context, ref string, params *CreateApiKeyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateApiKeyResponse, error)
+
+	CreateApiKeyWithResponse(ctx context.Context, ref string, params *CreateApiKeyParams, body CreateApiKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateApiKeyResponse, error)
+
+	// DeleteApiKeyWithResponse request
+	DeleteApiKeyWithResponse(ctx context.Context, ref string, id string, params *DeleteApiKeyParams, reqEditors ...RequestEditorFn) (*DeleteApiKeyResponse, error)
+
+	// GetApiKeyWithResponse request
+	GetApiKeyWithResponse(ctx context.Context, ref string, id string, params *GetApiKeyParams, reqEditors ...RequestEditorFn) (*GetApiKeyResponse, error)
+
+	// UpdateApiKeyWithBodyWithResponse request with any body
+	UpdateApiKeyWithBodyWithResponse(ctx context.Context, ref string, id string, params *UpdateApiKeyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateApiKeyResponse, error)
+
+	UpdateApiKeyWithResponse(ctx context.Context, ref string, id string, params *UpdateApiKeyParams, body UpdateApiKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateApiKeyResponse, error)
 
 	// V1DisablePreviewBranchingWithResponse request
 	V1DisablePreviewBranchingWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1DisablePreviewBranchingResponse, error)
@@ -5201,6 +6329,14 @@ type ClientWithResponsesInterface interface {
 
 	V1UpdatePostgresConfigWithResponse(ctx context.Context, ref string, body V1UpdatePostgresConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*V1UpdatePostgresConfigResponse, error)
 
+	// V1GetStorageConfigWithResponse request
+	V1GetStorageConfigWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetStorageConfigResponse, error)
+
+	// V1UpdateStorageConfigWithBodyWithResponse request with any body
+	V1UpdateStorageConfigWithBodyWithResponse(ctx context.Context, ref string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*V1UpdateStorageConfigResponse, error)
+
+	V1UpdateStorageConfigWithResponse(ctx context.Context, ref string, body V1UpdateStorageConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*V1UpdateStorageConfigResponse, error)
+
 	// V1DeleteHostnameConfigWithResponse request
 	V1DeleteHostnameConfigWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1DeleteHostnameConfigResponse, error)
 
@@ -5237,10 +6373,10 @@ type ClientWithResponsesInterface interface {
 	// V1ListAllFunctionsWithResponse request
 	V1ListAllFunctionsWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1ListAllFunctionsResponse, error)
 
-	// CreateFunctionWithBodyWithResponse request with any body
-	CreateFunctionWithBodyWithResponse(ctx context.Context, ref string, params *CreateFunctionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateFunctionResponse, error)
+	// V1CreateAFunctionWithBodyWithResponse request with any body
+	V1CreateAFunctionWithBodyWithResponse(ctx context.Context, ref string, params *V1CreateAFunctionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*V1CreateAFunctionResponse, error)
 
-	CreateFunctionWithResponse(ctx context.Context, ref string, params *CreateFunctionParams, body CreateFunctionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateFunctionResponse, error)
+	V1CreateAFunctionWithResponse(ctx context.Context, ref string, params *V1CreateAFunctionParams, body V1CreateAFunctionJSONRequestBody, reqEditors ...RequestEditorFn) (*V1CreateAFunctionResponse, error)
 
 	// V1DeleteAFunctionWithResponse request
 	V1DeleteAFunctionWithResponse(ctx context.Context, ref string, functionSlug string, reqEditors ...RequestEditorFn) (*V1DeleteAFunctionResponse, error)
@@ -5275,6 +6411,9 @@ type ClientWithResponsesInterface interface {
 
 	V1UpdateNetworkRestrictionsWithResponse(ctx context.Context, ref string, body V1UpdateNetworkRestrictionsJSONRequestBody, reqEditors ...RequestEditorFn) (*V1UpdateNetworkRestrictionsResponse, error)
 
+	// V1PauseAProjectWithResponse request
+	V1PauseAProjectWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1PauseAProjectResponse, error)
+
 	// V1GetPgsodiumConfigWithResponse request
 	V1GetPgsodiumConfigWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetPgsodiumConfigResponse, error)
 
@@ -5306,6 +6445,17 @@ type ClientWithResponsesInterface interface {
 
 	// V1DisableReadonlyModeTemporarilyWithResponse request
 	V1DisableReadonlyModeTemporarilyWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1DisableReadonlyModeTemporarilyResponse, error)
+
+	// V1ListAvailableRestoreVersionsWithResponse request
+	V1ListAvailableRestoreVersionsWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1ListAvailableRestoreVersionsResponse, error)
+
+	// V1RestoreAProjectWithBodyWithResponse request with any body
+	V1RestoreAProjectWithBodyWithResponse(ctx context.Context, ref string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*V1RestoreAProjectResponse, error)
+
+	V1RestoreAProjectWithResponse(ctx context.Context, ref string, body V1RestoreAProjectJSONRequestBody, reqEditors ...RequestEditorFn) (*V1RestoreAProjectResponse, error)
+
+	// V1CancelAProjectRestorationWithResponse request
+	V1CancelAProjectRestorationWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1CancelAProjectRestorationResponse, error)
 
 	// V1BulkDeleteSecretsWithBodyWithResponse request with any body
 	V1BulkDeleteSecretsWithBodyWithResponse(ctx context.Context, ref string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*V1BulkDeleteSecretsResponse, error)
@@ -5339,11 +6489,11 @@ type ClientWithResponsesInterface interface {
 
 	V1UpgradePostgresVersionWithResponse(ctx context.Context, ref string, body V1UpgradePostgresVersionJSONRequestBody, reqEditors ...RequestEditorFn) (*V1UpgradePostgresVersionResponse, error)
 
-	// V1GetPostgrestUpgradeEligibilityWithResponse request
-	V1GetPostgrestUpgradeEligibilityWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetPostgrestUpgradeEligibilityResponse, error)
+	// V1GetPostgresUpgradeEligibilityWithResponse request
+	V1GetPostgresUpgradeEligibilityWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetPostgresUpgradeEligibilityResponse, error)
 
-	// V1GetPostgrestUpgradeStatusWithResponse request
-	V1GetPostgrestUpgradeStatusWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetPostgrestUpgradeStatusResponse, error)
+	// V1GetPostgresUpgradeStatusWithResponse request
+	V1GetPostgresUpgradeStatusWithResponse(ctx context.Context, ref string, params *V1GetPostgresUpgradeStatusParams, reqEditors ...RequestEditorFn) (*V1GetPostgresUpgradeStatusResponse, error)
 
 	// V1DeactivateVanitySubdomainConfigWithResponse request
 	V1DeactivateVanitySubdomainConfigWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1DeactivateVanitySubdomainConfigResponse, error)
@@ -5365,7 +6515,7 @@ type ClientWithResponsesInterface interface {
 	V1ListAllSnippetsWithResponse(ctx context.Context, params *V1ListAllSnippetsParams, reqEditors ...RequestEditorFn) (*V1ListAllSnippetsResponse, error)
 
 	// V1GetASnippetWithResponse request
-	V1GetASnippetWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*V1GetASnippetResponse, error)
+	V1GetASnippetWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*V1GetASnippetResponse, error)
 }
 
 type V1DeleteABranchResponse struct {
@@ -5434,10 +6584,32 @@ func (r V1UpdateABranchConfigResponse) StatusCode() int {
 	return 0
 }
 
+type V1PushABranchResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BranchUpdateResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r V1PushABranchResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r V1PushABranchResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type V1ResetABranchResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON201      *BranchResetResponse
+	JSON201      *BranchUpdateResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -5471,6 +6643,27 @@ func (r V1AuthorizeUserResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r V1AuthorizeUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type V1RevokeTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r V1RevokeTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r V1RevokeTokenResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -5590,7 +6783,7 @@ func (r V1ListOrganizationMembersResponse) StatusCode() int {
 type V1ListAllProjectsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *[]V1ProjectResponse
+	JSON200      *[]V1ProjectWithDatabaseResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -5653,6 +6846,50 @@ func (r V1DeleteAProjectResponse) StatusCode() int {
 	return 0
 }
 
+type V1GetProjectResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *V1ProjectWithDatabaseResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r V1GetProjectResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r V1GetProjectResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetLogsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *V1AnalyticsResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetLogsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetLogsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type V1GetProjectApiKeysResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -5669,6 +6906,94 @@ func (r V1GetProjectApiKeysResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r V1GetProjectApiKeysResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateApiKeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ApiKeyResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateApiKeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateApiKeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteApiKeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ApiKeyResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteApiKeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteApiKeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiKeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ApiKeyResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiKeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiKeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateApiKeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ApiKeyResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateApiKeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateApiKeyResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6092,6 +7417,49 @@ func (r V1UpdatePostgresConfigResponse) StatusCode() int {
 	return 0
 }
 
+type V1GetStorageConfigResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *StorageConfigResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r V1GetStorageConfigResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r V1GetStorageConfigResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type V1UpdateStorageConfigResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r V1UpdateStorageConfigResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r V1UpdateStorageConfigResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type V1DeleteHostnameConfigResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -6309,14 +7677,14 @@ func (r V1ListAllFunctionsResponse) StatusCode() int {
 	return 0
 }
 
-type CreateFunctionResponse struct {
+type V1CreateAFunctionResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON201      *FunctionResponse
 }
 
 // Status returns HTTPResponse.Status
-func (r CreateFunctionResponse) Status() string {
+func (r V1CreateAFunctionResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -6324,7 +7692,7 @@ func (r CreateFunctionResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r CreateFunctionResponse) StatusCode() int {
+func (r V1CreateAFunctionResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6526,6 +7894,27 @@ func (r V1UpdateNetworkRestrictionsResponse) StatusCode() int {
 	return 0
 }
 
+type V1PauseAProjectResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r V1PauseAProjectResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r V1PauseAProjectResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type V1GetPgsodiumConfigResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -6693,6 +8082,70 @@ func (r V1DisableReadonlyModeTemporarilyResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r V1DisableReadonlyModeTemporarilyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type V1ListAvailableRestoreVersionsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetProjectAvailableRestoreVersionsResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r V1ListAvailableRestoreVersionsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r V1ListAvailableRestoreVersionsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type V1RestoreAProjectResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r V1RestoreAProjectResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r V1RestoreAProjectResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type V1CancelAProjectRestorationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r V1CancelAProjectRestorationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r V1CancelAProjectRestorationResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6874,14 +8327,14 @@ func (r V1UpgradePostgresVersionResponse) StatusCode() int {
 	return 0
 }
 
-type V1GetPostgrestUpgradeEligibilityResponse struct {
+type V1GetPostgresUpgradeEligibilityResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *ProjectUpgradeEligibilityResponse
 }
 
 // Status returns HTTPResponse.Status
-func (r V1GetPostgrestUpgradeEligibilityResponse) Status() string {
+func (r V1GetPostgresUpgradeEligibilityResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -6889,21 +8342,21 @@ func (r V1GetPostgrestUpgradeEligibilityResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r V1GetPostgrestUpgradeEligibilityResponse) StatusCode() int {
+func (r V1GetPostgresUpgradeEligibilityResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type V1GetPostgrestUpgradeStatusResponse struct {
+type V1GetPostgresUpgradeStatusResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *DatabaseUpgradeStatusResponse
 }
 
 // Status returns HTTPResponse.Status
-func (r V1GetPostgrestUpgradeStatusResponse) Status() string {
+func (r V1GetPostgresUpgradeStatusResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -6911,7 +8364,7 @@ func (r V1GetPostgrestUpgradeStatusResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r V1GetPostgrestUpgradeStatusResponse) StatusCode() int {
+func (r V1GetPostgresUpgradeStatusResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -7084,6 +8537,15 @@ func (c *ClientWithResponses) V1UpdateABranchConfigWithResponse(ctx context.Cont
 	return ParseV1UpdateABranchConfigResponse(rsp)
 }
 
+// V1PushABranchWithResponse request returning *V1PushABranchResponse
+func (c *ClientWithResponses) V1PushABranchWithResponse(ctx context.Context, branchId string, reqEditors ...RequestEditorFn) (*V1PushABranchResponse, error) {
+	rsp, err := c.V1PushABranch(ctx, branchId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1PushABranchResponse(rsp)
+}
+
 // V1ResetABranchWithResponse request returning *V1ResetABranchResponse
 func (c *ClientWithResponses) V1ResetABranchWithResponse(ctx context.Context, branchId string, reqEditors ...RequestEditorFn) (*V1ResetABranchResponse, error) {
 	rsp, err := c.V1ResetABranch(ctx, branchId, reqEditors...)
@@ -7100,6 +8562,23 @@ func (c *ClientWithResponses) V1AuthorizeUserWithResponse(ctx context.Context, p
 		return nil, err
 	}
 	return ParseV1AuthorizeUserResponse(rsp)
+}
+
+// V1RevokeTokenWithBodyWithResponse request with arbitrary body returning *V1RevokeTokenResponse
+func (c *ClientWithResponses) V1RevokeTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*V1RevokeTokenResponse, error) {
+	rsp, err := c.V1RevokeTokenWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1RevokeTokenResponse(rsp)
+}
+
+func (c *ClientWithResponses) V1RevokeTokenWithResponse(ctx context.Context, body V1RevokeTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*V1RevokeTokenResponse, error) {
+	rsp, err := c.V1RevokeToken(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1RevokeTokenResponse(rsp)
 }
 
 // V1ExchangeOauthTokenWithBodyWithResponse request with arbitrary body returning *V1ExchangeOauthTokenResponse
@@ -7198,13 +8677,83 @@ func (c *ClientWithResponses) V1DeleteAProjectWithResponse(ctx context.Context, 
 	return ParseV1DeleteAProjectResponse(rsp)
 }
 
+// V1GetProjectWithResponse request returning *V1GetProjectResponse
+func (c *ClientWithResponses) V1GetProjectWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetProjectResponse, error) {
+	rsp, err := c.V1GetProject(ctx, ref, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1GetProjectResponse(rsp)
+}
+
+// GetLogsWithResponse request returning *GetLogsResponse
+func (c *ClientWithResponses) GetLogsWithResponse(ctx context.Context, ref string, params *GetLogsParams, reqEditors ...RequestEditorFn) (*GetLogsResponse, error) {
+	rsp, err := c.GetLogs(ctx, ref, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetLogsResponse(rsp)
+}
+
 // V1GetProjectApiKeysWithResponse request returning *V1GetProjectApiKeysResponse
-func (c *ClientWithResponses) V1GetProjectApiKeysWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetProjectApiKeysResponse, error) {
-	rsp, err := c.V1GetProjectApiKeys(ctx, ref, reqEditors...)
+func (c *ClientWithResponses) V1GetProjectApiKeysWithResponse(ctx context.Context, ref string, params *V1GetProjectApiKeysParams, reqEditors ...RequestEditorFn) (*V1GetProjectApiKeysResponse, error) {
+	rsp, err := c.V1GetProjectApiKeys(ctx, ref, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseV1GetProjectApiKeysResponse(rsp)
+}
+
+// CreateApiKeyWithBodyWithResponse request with arbitrary body returning *CreateApiKeyResponse
+func (c *ClientWithResponses) CreateApiKeyWithBodyWithResponse(ctx context.Context, ref string, params *CreateApiKeyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateApiKeyResponse, error) {
+	rsp, err := c.CreateApiKeyWithBody(ctx, ref, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateApiKeyResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateApiKeyWithResponse(ctx context.Context, ref string, params *CreateApiKeyParams, body CreateApiKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateApiKeyResponse, error) {
+	rsp, err := c.CreateApiKey(ctx, ref, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateApiKeyResponse(rsp)
+}
+
+// DeleteApiKeyWithResponse request returning *DeleteApiKeyResponse
+func (c *ClientWithResponses) DeleteApiKeyWithResponse(ctx context.Context, ref string, id string, params *DeleteApiKeyParams, reqEditors ...RequestEditorFn) (*DeleteApiKeyResponse, error) {
+	rsp, err := c.DeleteApiKey(ctx, ref, id, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteApiKeyResponse(rsp)
+}
+
+// GetApiKeyWithResponse request returning *GetApiKeyResponse
+func (c *ClientWithResponses) GetApiKeyWithResponse(ctx context.Context, ref string, id string, params *GetApiKeyParams, reqEditors ...RequestEditorFn) (*GetApiKeyResponse, error) {
+	rsp, err := c.GetApiKey(ctx, ref, id, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiKeyResponse(rsp)
+}
+
+// UpdateApiKeyWithBodyWithResponse request with arbitrary body returning *UpdateApiKeyResponse
+func (c *ClientWithResponses) UpdateApiKeyWithBodyWithResponse(ctx context.Context, ref string, id string, params *UpdateApiKeyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateApiKeyResponse, error) {
+	rsp, err := c.UpdateApiKeyWithBody(ctx, ref, id, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateApiKeyResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateApiKeyWithResponse(ctx context.Context, ref string, id string, params *UpdateApiKeyParams, body UpdateApiKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateApiKeyResponse, error) {
+	rsp, err := c.UpdateApiKey(ctx, ref, id, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateApiKeyResponse(rsp)
 }
 
 // V1DisablePreviewBranchingWithResponse request returning *V1DisablePreviewBranchingResponse
@@ -7434,6 +8983,32 @@ func (c *ClientWithResponses) V1UpdatePostgresConfigWithResponse(ctx context.Con
 	return ParseV1UpdatePostgresConfigResponse(rsp)
 }
 
+// V1GetStorageConfigWithResponse request returning *V1GetStorageConfigResponse
+func (c *ClientWithResponses) V1GetStorageConfigWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetStorageConfigResponse, error) {
+	rsp, err := c.V1GetStorageConfig(ctx, ref, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1GetStorageConfigResponse(rsp)
+}
+
+// V1UpdateStorageConfigWithBodyWithResponse request with arbitrary body returning *V1UpdateStorageConfigResponse
+func (c *ClientWithResponses) V1UpdateStorageConfigWithBodyWithResponse(ctx context.Context, ref string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*V1UpdateStorageConfigResponse, error) {
+	rsp, err := c.V1UpdateStorageConfigWithBody(ctx, ref, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1UpdateStorageConfigResponse(rsp)
+}
+
+func (c *ClientWithResponses) V1UpdateStorageConfigWithResponse(ctx context.Context, ref string, body V1UpdateStorageConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*V1UpdateStorageConfigResponse, error) {
+	rsp, err := c.V1UpdateStorageConfig(ctx, ref, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1UpdateStorageConfigResponse(rsp)
+}
+
 // V1DeleteHostnameConfigWithResponse request returning *V1DeleteHostnameConfigResponse
 func (c *ClientWithResponses) V1DeleteHostnameConfigWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1DeleteHostnameConfigResponse, error) {
 	rsp, err := c.V1DeleteHostnameConfig(ctx, ref, reqEditors...)
@@ -7548,21 +9123,21 @@ func (c *ClientWithResponses) V1ListAllFunctionsWithResponse(ctx context.Context
 	return ParseV1ListAllFunctionsResponse(rsp)
 }
 
-// CreateFunctionWithBodyWithResponse request with arbitrary body returning *CreateFunctionResponse
-func (c *ClientWithResponses) CreateFunctionWithBodyWithResponse(ctx context.Context, ref string, params *CreateFunctionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateFunctionResponse, error) {
-	rsp, err := c.CreateFunctionWithBody(ctx, ref, params, contentType, body, reqEditors...)
+// V1CreateAFunctionWithBodyWithResponse request with arbitrary body returning *V1CreateAFunctionResponse
+func (c *ClientWithResponses) V1CreateAFunctionWithBodyWithResponse(ctx context.Context, ref string, params *V1CreateAFunctionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*V1CreateAFunctionResponse, error) {
+	rsp, err := c.V1CreateAFunctionWithBody(ctx, ref, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCreateFunctionResponse(rsp)
+	return ParseV1CreateAFunctionResponse(rsp)
 }
 
-func (c *ClientWithResponses) CreateFunctionWithResponse(ctx context.Context, ref string, params *CreateFunctionParams, body CreateFunctionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateFunctionResponse, error) {
-	rsp, err := c.CreateFunction(ctx, ref, params, body, reqEditors...)
+func (c *ClientWithResponses) V1CreateAFunctionWithResponse(ctx context.Context, ref string, params *V1CreateAFunctionParams, body V1CreateAFunctionJSONRequestBody, reqEditors ...RequestEditorFn) (*V1CreateAFunctionResponse, error) {
+	rsp, err := c.V1CreateAFunction(ctx, ref, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCreateFunctionResponse(rsp)
+	return ParseV1CreateAFunctionResponse(rsp)
 }
 
 // V1DeleteAFunctionWithResponse request returning *V1DeleteAFunctionResponse
@@ -7670,6 +9245,15 @@ func (c *ClientWithResponses) V1UpdateNetworkRestrictionsWithResponse(ctx contex
 	return ParseV1UpdateNetworkRestrictionsResponse(rsp)
 }
 
+// V1PauseAProjectWithResponse request returning *V1PauseAProjectResponse
+func (c *ClientWithResponses) V1PauseAProjectWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1PauseAProjectResponse, error) {
+	rsp, err := c.V1PauseAProject(ctx, ref, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1PauseAProjectResponse(rsp)
+}
+
 // V1GetPgsodiumConfigWithResponse request returning *V1GetPgsodiumConfigResponse
 func (c *ClientWithResponses) V1GetPgsodiumConfigWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetPgsodiumConfigResponse, error) {
 	rsp, err := c.V1GetPgsodiumConfig(ctx, ref, reqEditors...)
@@ -7772,6 +9356,41 @@ func (c *ClientWithResponses) V1DisableReadonlyModeTemporarilyWithResponse(ctx c
 		return nil, err
 	}
 	return ParseV1DisableReadonlyModeTemporarilyResponse(rsp)
+}
+
+// V1ListAvailableRestoreVersionsWithResponse request returning *V1ListAvailableRestoreVersionsResponse
+func (c *ClientWithResponses) V1ListAvailableRestoreVersionsWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1ListAvailableRestoreVersionsResponse, error) {
+	rsp, err := c.V1ListAvailableRestoreVersions(ctx, ref, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1ListAvailableRestoreVersionsResponse(rsp)
+}
+
+// V1RestoreAProjectWithBodyWithResponse request with arbitrary body returning *V1RestoreAProjectResponse
+func (c *ClientWithResponses) V1RestoreAProjectWithBodyWithResponse(ctx context.Context, ref string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*V1RestoreAProjectResponse, error) {
+	rsp, err := c.V1RestoreAProjectWithBody(ctx, ref, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1RestoreAProjectResponse(rsp)
+}
+
+func (c *ClientWithResponses) V1RestoreAProjectWithResponse(ctx context.Context, ref string, body V1RestoreAProjectJSONRequestBody, reqEditors ...RequestEditorFn) (*V1RestoreAProjectResponse, error) {
+	rsp, err := c.V1RestoreAProject(ctx, ref, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1RestoreAProjectResponse(rsp)
+}
+
+// V1CancelAProjectRestorationWithResponse request returning *V1CancelAProjectRestorationResponse
+func (c *ClientWithResponses) V1CancelAProjectRestorationWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1CancelAProjectRestorationResponse, error) {
+	rsp, err := c.V1CancelAProjectRestoration(ctx, ref, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseV1CancelAProjectRestorationResponse(rsp)
 }
 
 // V1BulkDeleteSecretsWithBodyWithResponse request with arbitrary body returning *V1BulkDeleteSecretsResponse
@@ -7878,22 +9497,22 @@ func (c *ClientWithResponses) V1UpgradePostgresVersionWithResponse(ctx context.C
 	return ParseV1UpgradePostgresVersionResponse(rsp)
 }
 
-// V1GetPostgrestUpgradeEligibilityWithResponse request returning *V1GetPostgrestUpgradeEligibilityResponse
-func (c *ClientWithResponses) V1GetPostgrestUpgradeEligibilityWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetPostgrestUpgradeEligibilityResponse, error) {
-	rsp, err := c.V1GetPostgrestUpgradeEligibility(ctx, ref, reqEditors...)
+// V1GetPostgresUpgradeEligibilityWithResponse request returning *V1GetPostgresUpgradeEligibilityResponse
+func (c *ClientWithResponses) V1GetPostgresUpgradeEligibilityWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetPostgresUpgradeEligibilityResponse, error) {
+	rsp, err := c.V1GetPostgresUpgradeEligibility(ctx, ref, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseV1GetPostgrestUpgradeEligibilityResponse(rsp)
+	return ParseV1GetPostgresUpgradeEligibilityResponse(rsp)
 }
 
-// V1GetPostgrestUpgradeStatusWithResponse request returning *V1GetPostgrestUpgradeStatusResponse
-func (c *ClientWithResponses) V1GetPostgrestUpgradeStatusWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*V1GetPostgrestUpgradeStatusResponse, error) {
-	rsp, err := c.V1GetPostgrestUpgradeStatus(ctx, ref, reqEditors...)
+// V1GetPostgresUpgradeStatusWithResponse request returning *V1GetPostgresUpgradeStatusResponse
+func (c *ClientWithResponses) V1GetPostgresUpgradeStatusWithResponse(ctx context.Context, ref string, params *V1GetPostgresUpgradeStatusParams, reqEditors ...RequestEditorFn) (*V1GetPostgresUpgradeStatusResponse, error) {
+	rsp, err := c.V1GetPostgresUpgradeStatus(ctx, ref, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseV1GetPostgrestUpgradeStatusResponse(rsp)
+	return ParseV1GetPostgresUpgradeStatusResponse(rsp)
 }
 
 // V1DeactivateVanitySubdomainConfigWithResponse request returning *V1DeactivateVanitySubdomainConfigResponse
@@ -7958,7 +9577,7 @@ func (c *ClientWithResponses) V1ListAllSnippetsWithResponse(ctx context.Context,
 }
 
 // V1GetASnippetWithResponse request returning *V1GetASnippetResponse
-func (c *ClientWithResponses) V1GetASnippetWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*V1GetASnippetResponse, error) {
+func (c *ClientWithResponses) V1GetASnippetWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*V1GetASnippetResponse, error) {
 	rsp, err := c.V1GetASnippet(ctx, id, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -8044,6 +9663,32 @@ func ParseV1UpdateABranchConfigResponse(rsp *http.Response) (*V1UpdateABranchCon
 	return response, nil
 }
 
+// ParseV1PushABranchResponse parses an HTTP response from a V1PushABranchWithResponse call
+func ParseV1PushABranchResponse(rsp *http.Response) (*V1PushABranchResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &V1PushABranchResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BranchUpdateResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseV1ResetABranchResponse parses an HTTP response from a V1ResetABranchWithResponse call
 func ParseV1ResetABranchResponse(rsp *http.Response) (*V1ResetABranchResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -8059,7 +9704,7 @@ func ParseV1ResetABranchResponse(rsp *http.Response) (*V1ResetABranchResponse, e
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest BranchResetResponse
+		var dest BranchUpdateResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -8079,6 +9724,22 @@ func ParseV1AuthorizeUserResponse(rsp *http.Response) (*V1AuthorizeUserResponse,
 	}
 
 	response := &V1AuthorizeUserResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseV1RevokeTokenResponse parses an HTTP response from a V1RevokeTokenWithResponse call
+func ParseV1RevokeTokenResponse(rsp *http.Response) (*V1RevokeTokenResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &V1RevokeTokenResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -8231,7 +9892,7 @@ func ParseV1ListAllProjectsResponse(rsp *http.Response) (*V1ListAllProjectsRespo
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []V1ProjectResponse
+		var dest []V1ProjectWithDatabaseResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -8294,6 +9955,58 @@ func ParseV1DeleteAProjectResponse(rsp *http.Response) (*V1DeleteAProjectRespons
 	return response, nil
 }
 
+// ParseV1GetProjectResponse parses an HTTP response from a V1GetProjectWithResponse call
+func ParseV1GetProjectResponse(rsp *http.Response) (*V1GetProjectResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &V1GetProjectResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest V1ProjectWithDatabaseResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetLogsResponse parses an HTTP response from a GetLogsWithResponse call
+func ParseGetLogsResponse(rsp *http.Response) (*GetLogsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetLogsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest V1AnalyticsResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseV1GetProjectApiKeysResponse parses an HTTP response from a V1GetProjectApiKeysWithResponse call
 func ParseV1GetProjectApiKeysResponse(rsp *http.Response) (*V1GetProjectApiKeysResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -8310,6 +10023,110 @@ func ParseV1GetProjectApiKeysResponse(rsp *http.Response) (*V1GetProjectApiKeysR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []ApiKeyResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateApiKeyResponse parses an HTTP response from a CreateApiKeyWithResponse call
+func ParseCreateApiKeyResponse(rsp *http.Response) (*CreateApiKeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateApiKeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ApiKeyResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteApiKeyResponse parses an HTTP response from a DeleteApiKeyWithResponse call
+func ParseDeleteApiKeyResponse(rsp *http.Response) (*DeleteApiKeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteApiKeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiKeyResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiKeyResponse parses an HTTP response from a GetApiKeyWithResponse call
+func ParseGetApiKeyResponse(rsp *http.Response) (*GetApiKeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiKeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiKeyResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateApiKeyResponse parses an HTTP response from a UpdateApiKeyWithResponse call
+func ParseUpdateApiKeyResponse(rsp *http.Response) (*UpdateApiKeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateApiKeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiKeyResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -8804,6 +10621,48 @@ func ParseV1UpdatePostgresConfigResponse(rsp *http.Response) (*V1UpdatePostgresC
 	return response, nil
 }
 
+// ParseV1GetStorageConfigResponse parses an HTTP response from a V1GetStorageConfigWithResponse call
+func ParseV1GetStorageConfigResponse(rsp *http.Response) (*V1GetStorageConfigResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &V1GetStorageConfigResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StorageConfigResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseV1UpdateStorageConfigResponse parses an HTTP response from a V1UpdateStorageConfigWithResponse call
+func ParseV1UpdateStorageConfigResponse(rsp *http.Response) (*V1UpdateStorageConfigResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &V1UpdateStorageConfigResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseV1DeleteHostnameConfigResponse parses an HTTP response from a V1DeleteHostnameConfigWithResponse call
 func ParseV1DeleteHostnameConfigResponse(rsp *http.Response) (*V1DeleteHostnameConfigResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -9034,15 +10893,15 @@ func ParseV1ListAllFunctionsResponse(rsp *http.Response) (*V1ListAllFunctionsRes
 	return response, nil
 }
 
-// ParseCreateFunctionResponse parses an HTTP response from a CreateFunctionWithResponse call
-func ParseCreateFunctionResponse(rsp *http.Response) (*CreateFunctionResponse, error) {
+// ParseV1CreateAFunctionResponse parses an HTTP response from a V1CreateAFunctionWithResponse call
+func ParseV1CreateAFunctionResponse(rsp *http.Response) (*V1CreateAFunctionResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &CreateFunctionResponse{
+	response := &V1CreateAFunctionResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -9264,6 +11123,22 @@ func ParseV1UpdateNetworkRestrictionsResponse(rsp *http.Response) (*V1UpdateNetw
 	return response, nil
 }
 
+// ParseV1PauseAProjectResponse parses an HTTP response from a V1PauseAProjectWithResponse call
+func ParseV1PauseAProjectResponse(rsp *http.Response) (*V1PauseAProjectResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &V1PauseAProjectResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseV1GetPgsodiumConfigResponse parses an HTTP response from a V1GetPgsodiumConfigWithResponse call
 func ParseV1GetPgsodiumConfigResponse(rsp *http.Response) (*V1GetPgsodiumConfigResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -9435,6 +11310,64 @@ func ParseV1DisableReadonlyModeTemporarilyResponse(rsp *http.Response) (*V1Disab
 	}
 
 	response := &V1DisableReadonlyModeTemporarilyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseV1ListAvailableRestoreVersionsResponse parses an HTTP response from a V1ListAvailableRestoreVersionsWithResponse call
+func ParseV1ListAvailableRestoreVersionsResponse(rsp *http.Response) (*V1ListAvailableRestoreVersionsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &V1ListAvailableRestoreVersionsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetProjectAvailableRestoreVersionsResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseV1RestoreAProjectResponse parses an HTTP response from a V1RestoreAProjectWithResponse call
+func ParseV1RestoreAProjectResponse(rsp *http.Response) (*V1RestoreAProjectResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &V1RestoreAProjectResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseV1CancelAProjectRestorationResponse parses an HTTP response from a V1CancelAProjectRestorationWithResponse call
+func ParseV1CancelAProjectRestorationResponse(rsp *http.Response) (*V1CancelAProjectRestorationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &V1CancelAProjectRestorationResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -9640,15 +11573,15 @@ func ParseV1UpgradePostgresVersionResponse(rsp *http.Response) (*V1UpgradePostgr
 	return response, nil
 }
 
-// ParseV1GetPostgrestUpgradeEligibilityResponse parses an HTTP response from a V1GetPostgrestUpgradeEligibilityWithResponse call
-func ParseV1GetPostgrestUpgradeEligibilityResponse(rsp *http.Response) (*V1GetPostgrestUpgradeEligibilityResponse, error) {
+// ParseV1GetPostgresUpgradeEligibilityResponse parses an HTTP response from a V1GetPostgresUpgradeEligibilityWithResponse call
+func ParseV1GetPostgresUpgradeEligibilityResponse(rsp *http.Response) (*V1GetPostgresUpgradeEligibilityResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &V1GetPostgrestUpgradeEligibilityResponse{
+	response := &V1GetPostgresUpgradeEligibilityResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -9666,15 +11599,15 @@ func ParseV1GetPostgrestUpgradeEligibilityResponse(rsp *http.Response) (*V1GetPo
 	return response, nil
 }
 
-// ParseV1GetPostgrestUpgradeStatusResponse parses an HTTP response from a V1GetPostgrestUpgradeStatusWithResponse call
-func ParseV1GetPostgrestUpgradeStatusResponse(rsp *http.Response) (*V1GetPostgrestUpgradeStatusResponse, error) {
+// ParseV1GetPostgresUpgradeStatusResponse parses an HTTP response from a V1GetPostgresUpgradeStatusWithResponse call
+func ParseV1GetPostgresUpgradeStatusResponse(rsp *http.Response) (*V1GetPostgresUpgradeStatusResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &V1GetPostgrestUpgradeStatusResponse{
+	response := &V1GetPostgresUpgradeStatusResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

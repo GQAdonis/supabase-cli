@@ -7,11 +7,24 @@ import (
 	"encoding/json"
 
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
 	BearerScopes = "bearer.Scopes"
 	Oauth2Scopes = "oauth2.Scopes"
+)
+
+// Defines values for ApiKeyResponseType.
+const (
+	ApiKeyResponseTypeLegacy      ApiKeyResponseType = "legacy"
+	ApiKeyResponseTypePublishable ApiKeyResponseType = "publishable"
+	ApiKeyResponseTypeSecret      ApiKeyResponseType = "secret"
+)
+
+// Defines values for AuthHealthResponseName.
+const (
+	GoTrue AuthHealthResponseName = "GoTrue"
 )
 
 // Defines values for BillingPlanId.
@@ -33,6 +46,7 @@ const (
 	BranchDetailResponseStatusPAUSEFAILED     BranchDetailResponseStatus = "PAUSE_FAILED"
 	BranchDetailResponseStatusPAUSING         BranchDetailResponseStatus = "PAUSING"
 	BranchDetailResponseStatusREMOVED         BranchDetailResponseStatus = "REMOVED"
+	BranchDetailResponseStatusRESIZING        BranchDetailResponseStatus = "RESIZING"
 	BranchDetailResponseStatusRESTARTING      BranchDetailResponseStatus = "RESTARTING"
 	BranchDetailResponseStatusRESTOREFAILED   BranchDetailResponseStatus = "RESTORE_FAILED"
 	BranchDetailResponseStatusRESTORING       BranchDetailResponseStatus = "RESTORING"
@@ -48,6 +62,12 @@ const (
 	BranchResponseStatusMIGRATIONSFAILED  BranchResponseStatus = "MIGRATIONS_FAILED"
 	BranchResponseStatusMIGRATIONSPASSED  BranchResponseStatus = "MIGRATIONS_PASSED"
 	BranchResponseStatusRUNNINGMIGRATIONS BranchResponseStatus = "RUNNING_MIGRATIONS"
+)
+
+// Defines values for CreateApiKeyBodyType.
+const (
+	CreateApiKeyBodyTypePublishable CreateApiKeyBodyType = "publishable"
+	CreateApiKeyBodyTypeSecret      CreateApiKeyBodyType = "secret"
 )
 
 // Defines values for CreateProviderBodyType.
@@ -92,16 +112,16 @@ const (
 
 // Defines values for DesiredInstanceSize.
 const (
-	Large     DesiredInstanceSize = "large"
-	Medium    DesiredInstanceSize = "medium"
-	Micro     DesiredInstanceSize = "micro"
-	N12xlarge DesiredInstanceSize = "12xlarge"
-	N16xlarge DesiredInstanceSize = "16xlarge"
-	N2xlarge  DesiredInstanceSize = "2xlarge"
-	N4xlarge  DesiredInstanceSize = "4xlarge"
-	N8xlarge  DesiredInstanceSize = "8xlarge"
-	Small     DesiredInstanceSize = "small"
-	Xlarge    DesiredInstanceSize = "xlarge"
+	DesiredInstanceSizeLarge     DesiredInstanceSize = "large"
+	DesiredInstanceSizeMedium    DesiredInstanceSize = "medium"
+	DesiredInstanceSizeMicro     DesiredInstanceSize = "micro"
+	DesiredInstanceSizeN12xlarge DesiredInstanceSize = "12xlarge"
+	DesiredInstanceSizeN16xlarge DesiredInstanceSize = "16xlarge"
+	DesiredInstanceSizeN2xlarge  DesiredInstanceSize = "2xlarge"
+	DesiredInstanceSizeN4xlarge  DesiredInstanceSize = "4xlarge"
+	DesiredInstanceSizeN8xlarge  DesiredInstanceSize = "8xlarge"
+	DesiredInstanceSizeSmall     DesiredInstanceSize = "small"
+	DesiredInstanceSizeXlarge    DesiredInstanceSize = "xlarge"
 )
 
 // Defines values for FunctionResponseStatus.
@@ -148,6 +168,56 @@ const (
 	PostgresConfigResponseSessionReplicationRoleReplica PostgresConfigResponseSessionReplicationRole = "replica"
 )
 
+// Defines values for PostgresEngine.
+const (
+	PostgresEngineN15       PostgresEngine = "15"
+	PostgresEngineN17Oriole PostgresEngine = "17-oriole"
+)
+
+// Defines values for ProjectAvailableRestoreVersionPostgresEngine.
+const (
+	ProjectAvailableRestoreVersionPostgresEngineN13       ProjectAvailableRestoreVersionPostgresEngine = "13"
+	ProjectAvailableRestoreVersionPostgresEngineN14       ProjectAvailableRestoreVersionPostgresEngine = "14"
+	ProjectAvailableRestoreVersionPostgresEngineN15       ProjectAvailableRestoreVersionPostgresEngine = "15"
+	ProjectAvailableRestoreVersionPostgresEngineN17Oriole ProjectAvailableRestoreVersionPostgresEngine = "17-oriole"
+)
+
+// Defines values for ProjectAvailableRestoreVersionReleaseChannel.
+const (
+	ProjectAvailableRestoreVersionReleaseChannelAlpha     ProjectAvailableRestoreVersionReleaseChannel = "alpha"
+	ProjectAvailableRestoreVersionReleaseChannelBeta      ProjectAvailableRestoreVersionReleaseChannel = "beta"
+	ProjectAvailableRestoreVersionReleaseChannelGa        ProjectAvailableRestoreVersionReleaseChannel = "ga"
+	ProjectAvailableRestoreVersionReleaseChannelInternal  ProjectAvailableRestoreVersionReleaseChannel = "internal"
+	ProjectAvailableRestoreVersionReleaseChannelPreview   ProjectAvailableRestoreVersionReleaseChannel = "preview"
+	ProjectAvailableRestoreVersionReleaseChannelWithdrawn ProjectAvailableRestoreVersionReleaseChannel = "withdrawn"
+)
+
+// Defines values for ReleaseChannel.
+const (
+	ReleaseChannelAlpha     ReleaseChannel = "alpha"
+	ReleaseChannelBeta      ReleaseChannel = "beta"
+	ReleaseChannelGa        ReleaseChannel = "ga"
+	ReleaseChannelInternal  ReleaseChannel = "internal"
+	ReleaseChannelPreview   ReleaseChannel = "preview"
+	ReleaseChannelWithdrawn ReleaseChannel = "withdrawn"
+)
+
+// Defines values for RestoreProjectBodyDtoPostgresEngine.
+const (
+	RestoreProjectBodyDtoPostgresEngineN15       RestoreProjectBodyDtoPostgresEngine = "15"
+	RestoreProjectBodyDtoPostgresEngineN17Oriole RestoreProjectBodyDtoPostgresEngine = "17-oriole"
+)
+
+// Defines values for RestoreProjectBodyDtoReleaseChannel.
+const (
+	RestoreProjectBodyDtoReleaseChannelAlpha     RestoreProjectBodyDtoReleaseChannel = "alpha"
+	RestoreProjectBodyDtoReleaseChannelBeta      RestoreProjectBodyDtoReleaseChannel = "beta"
+	RestoreProjectBodyDtoReleaseChannelGa        RestoreProjectBodyDtoReleaseChannel = "ga"
+	RestoreProjectBodyDtoReleaseChannelInternal  RestoreProjectBodyDtoReleaseChannel = "internal"
+	RestoreProjectBodyDtoReleaseChannelPreview   RestoreProjectBodyDtoReleaseChannel = "preview"
+	RestoreProjectBodyDtoReleaseChannelWithdrawn RestoreProjectBodyDtoReleaseChannel = "withdrawn"
+)
+
 // Defines values for SetUpReadReplicaBodyReadReplicaRegion.
 const (
 	SetUpReadReplicaBodyReadReplicaRegionApEast1      SetUpReadReplicaBodyReadReplicaRegion = "ap-east-1"
@@ -158,11 +228,14 @@ const (
 	SetUpReadReplicaBodyReadReplicaRegionApSoutheast2 SetUpReadReplicaBodyReadReplicaRegion = "ap-southeast-2"
 	SetUpReadReplicaBodyReadReplicaRegionCaCentral1   SetUpReadReplicaBodyReadReplicaRegion = "ca-central-1"
 	SetUpReadReplicaBodyReadReplicaRegionEuCentral1   SetUpReadReplicaBodyReadReplicaRegion = "eu-central-1"
+	SetUpReadReplicaBodyReadReplicaRegionEuCentral2   SetUpReadReplicaBodyReadReplicaRegion = "eu-central-2"
+	SetUpReadReplicaBodyReadReplicaRegionEuNorth1     SetUpReadReplicaBodyReadReplicaRegion = "eu-north-1"
 	SetUpReadReplicaBodyReadReplicaRegionEuWest1      SetUpReadReplicaBodyReadReplicaRegion = "eu-west-1"
 	SetUpReadReplicaBodyReadReplicaRegionEuWest2      SetUpReadReplicaBodyReadReplicaRegion = "eu-west-2"
 	SetUpReadReplicaBodyReadReplicaRegionEuWest3      SetUpReadReplicaBodyReadReplicaRegion = "eu-west-3"
 	SetUpReadReplicaBodyReadReplicaRegionSaEast1      SetUpReadReplicaBodyReadReplicaRegion = "sa-east-1"
 	SetUpReadReplicaBodyReadReplicaRegionUsEast1      SetUpReadReplicaBodyReadReplicaRegion = "us-east-1"
+	SetUpReadReplicaBodyReadReplicaRegionUsEast2      SetUpReadReplicaBodyReadReplicaRegion = "us-east-2"
 	SetUpReadReplicaBodyReadReplicaRegionUsWest1      SetUpReadReplicaBodyReadReplicaRegion = "us-west-1"
 	SetUpReadReplicaBodyReadReplicaRegionUsWest2      SetUpReadReplicaBodyReadReplicaRegion = "us-west-2"
 )
@@ -261,29 +334,62 @@ const (
 	V1BackupStatusREMOVED   V1BackupStatus = "REMOVED"
 )
 
-// Defines values for V1CreateProjectBodyPlan.
+// Defines values for V1CreateProjectBodyDtoDesiredInstanceSize.
 const (
-	V1CreateProjectBodyPlanFree V1CreateProjectBodyPlan = "free"
-	V1CreateProjectBodyPlanPro  V1CreateProjectBodyPlan = "pro"
+	V1CreateProjectBodyDtoDesiredInstanceSizeLarge     V1CreateProjectBodyDtoDesiredInstanceSize = "large"
+	V1CreateProjectBodyDtoDesiredInstanceSizeMedium    V1CreateProjectBodyDtoDesiredInstanceSize = "medium"
+	V1CreateProjectBodyDtoDesiredInstanceSizeMicro     V1CreateProjectBodyDtoDesiredInstanceSize = "micro"
+	V1CreateProjectBodyDtoDesiredInstanceSizeN12xlarge V1CreateProjectBodyDtoDesiredInstanceSize = "12xlarge"
+	V1CreateProjectBodyDtoDesiredInstanceSizeN16xlarge V1CreateProjectBodyDtoDesiredInstanceSize = "16xlarge"
+	V1CreateProjectBodyDtoDesiredInstanceSizeN2xlarge  V1CreateProjectBodyDtoDesiredInstanceSize = "2xlarge"
+	V1CreateProjectBodyDtoDesiredInstanceSizeN4xlarge  V1CreateProjectBodyDtoDesiredInstanceSize = "4xlarge"
+	V1CreateProjectBodyDtoDesiredInstanceSizeN8xlarge  V1CreateProjectBodyDtoDesiredInstanceSize = "8xlarge"
+	V1CreateProjectBodyDtoDesiredInstanceSizeSmall     V1CreateProjectBodyDtoDesiredInstanceSize = "small"
+	V1CreateProjectBodyDtoDesiredInstanceSizeXlarge    V1CreateProjectBodyDtoDesiredInstanceSize = "xlarge"
 )
 
-// Defines values for V1CreateProjectBodyRegion.
+// Defines values for V1CreateProjectBodyDtoPlan.
 const (
-	V1CreateProjectBodyRegionApEast1      V1CreateProjectBodyRegion = "ap-east-1"
-	V1CreateProjectBodyRegionApNortheast1 V1CreateProjectBodyRegion = "ap-northeast-1"
-	V1CreateProjectBodyRegionApNortheast2 V1CreateProjectBodyRegion = "ap-northeast-2"
-	V1CreateProjectBodyRegionApSouth1     V1CreateProjectBodyRegion = "ap-south-1"
-	V1CreateProjectBodyRegionApSoutheast1 V1CreateProjectBodyRegion = "ap-southeast-1"
-	V1CreateProjectBodyRegionApSoutheast2 V1CreateProjectBodyRegion = "ap-southeast-2"
-	V1CreateProjectBodyRegionCaCentral1   V1CreateProjectBodyRegion = "ca-central-1"
-	V1CreateProjectBodyRegionEuCentral1   V1CreateProjectBodyRegion = "eu-central-1"
-	V1CreateProjectBodyRegionEuWest1      V1CreateProjectBodyRegion = "eu-west-1"
-	V1CreateProjectBodyRegionEuWest2      V1CreateProjectBodyRegion = "eu-west-2"
-	V1CreateProjectBodyRegionEuWest3      V1CreateProjectBodyRegion = "eu-west-3"
-	V1CreateProjectBodyRegionSaEast1      V1CreateProjectBodyRegion = "sa-east-1"
-	V1CreateProjectBodyRegionUsEast1      V1CreateProjectBodyRegion = "us-east-1"
-	V1CreateProjectBodyRegionUsWest1      V1CreateProjectBodyRegion = "us-west-1"
-	V1CreateProjectBodyRegionUsWest2      V1CreateProjectBodyRegion = "us-west-2"
+	V1CreateProjectBodyDtoPlanFree V1CreateProjectBodyDtoPlan = "free"
+	V1CreateProjectBodyDtoPlanPro  V1CreateProjectBodyDtoPlan = "pro"
+)
+
+// Defines values for V1CreateProjectBodyDtoPostgresEngine.
+const (
+	V1CreateProjectBodyDtoPostgresEngineN15       V1CreateProjectBodyDtoPostgresEngine = "15"
+	V1CreateProjectBodyDtoPostgresEngineN17Oriole V1CreateProjectBodyDtoPostgresEngine = "17-oriole"
+)
+
+// Defines values for V1CreateProjectBodyDtoRegion.
+const (
+	V1CreateProjectBodyDtoRegionApEast1      V1CreateProjectBodyDtoRegion = "ap-east-1"
+	V1CreateProjectBodyDtoRegionApNortheast1 V1CreateProjectBodyDtoRegion = "ap-northeast-1"
+	V1CreateProjectBodyDtoRegionApNortheast2 V1CreateProjectBodyDtoRegion = "ap-northeast-2"
+	V1CreateProjectBodyDtoRegionApSouth1     V1CreateProjectBodyDtoRegion = "ap-south-1"
+	V1CreateProjectBodyDtoRegionApSoutheast1 V1CreateProjectBodyDtoRegion = "ap-southeast-1"
+	V1CreateProjectBodyDtoRegionApSoutheast2 V1CreateProjectBodyDtoRegion = "ap-southeast-2"
+	V1CreateProjectBodyDtoRegionCaCentral1   V1CreateProjectBodyDtoRegion = "ca-central-1"
+	V1CreateProjectBodyDtoRegionEuCentral1   V1CreateProjectBodyDtoRegion = "eu-central-1"
+	V1CreateProjectBodyDtoRegionEuCentral2   V1CreateProjectBodyDtoRegion = "eu-central-2"
+	V1CreateProjectBodyDtoRegionEuNorth1     V1CreateProjectBodyDtoRegion = "eu-north-1"
+	V1CreateProjectBodyDtoRegionEuWest1      V1CreateProjectBodyDtoRegion = "eu-west-1"
+	V1CreateProjectBodyDtoRegionEuWest2      V1CreateProjectBodyDtoRegion = "eu-west-2"
+	V1CreateProjectBodyDtoRegionEuWest3      V1CreateProjectBodyDtoRegion = "eu-west-3"
+	V1CreateProjectBodyDtoRegionSaEast1      V1CreateProjectBodyDtoRegion = "sa-east-1"
+	V1CreateProjectBodyDtoRegionUsEast1      V1CreateProjectBodyDtoRegion = "us-east-1"
+	V1CreateProjectBodyDtoRegionUsEast2      V1CreateProjectBodyDtoRegion = "us-east-2"
+	V1CreateProjectBodyDtoRegionUsWest1      V1CreateProjectBodyDtoRegion = "us-west-1"
+	V1CreateProjectBodyDtoRegionUsWest2      V1CreateProjectBodyDtoRegion = "us-west-2"
+)
+
+// Defines values for V1CreateProjectBodyDtoReleaseChannel.
+const (
+	V1CreateProjectBodyDtoReleaseChannelAlpha     V1CreateProjectBodyDtoReleaseChannel = "alpha"
+	V1CreateProjectBodyDtoReleaseChannelBeta      V1CreateProjectBodyDtoReleaseChannel = "beta"
+	V1CreateProjectBodyDtoReleaseChannelGa        V1CreateProjectBodyDtoReleaseChannel = "ga"
+	V1CreateProjectBodyDtoReleaseChannelInternal  V1CreateProjectBodyDtoReleaseChannel = "internal"
+	V1CreateProjectBodyDtoReleaseChannelPreview   V1CreateProjectBodyDtoReleaseChannel = "preview"
+	V1CreateProjectBodyDtoReleaseChannelWithdrawn V1CreateProjectBodyDtoReleaseChannel = "withdrawn"
 )
 
 // Defines values for V1OrganizationSlugResponseOptInTags.
@@ -309,11 +415,31 @@ const (
 	V1ProjectResponseStatusPAUSEFAILED     V1ProjectResponseStatus = "PAUSE_FAILED"
 	V1ProjectResponseStatusPAUSING         V1ProjectResponseStatus = "PAUSING"
 	V1ProjectResponseStatusREMOVED         V1ProjectResponseStatus = "REMOVED"
+	V1ProjectResponseStatusRESIZING        V1ProjectResponseStatus = "RESIZING"
 	V1ProjectResponseStatusRESTARTING      V1ProjectResponseStatus = "RESTARTING"
 	V1ProjectResponseStatusRESTOREFAILED   V1ProjectResponseStatus = "RESTORE_FAILED"
 	V1ProjectResponseStatusRESTORING       V1ProjectResponseStatus = "RESTORING"
 	V1ProjectResponseStatusUNKNOWN         V1ProjectResponseStatus = "UNKNOWN"
 	V1ProjectResponseStatusUPGRADING       V1ProjectResponseStatus = "UPGRADING"
+)
+
+// Defines values for V1ProjectWithDatabaseResponseStatus.
+const (
+	V1ProjectWithDatabaseResponseStatusACTIVEHEALTHY   V1ProjectWithDatabaseResponseStatus = "ACTIVE_HEALTHY"
+	V1ProjectWithDatabaseResponseStatusACTIVEUNHEALTHY V1ProjectWithDatabaseResponseStatus = "ACTIVE_UNHEALTHY"
+	V1ProjectWithDatabaseResponseStatusCOMINGUP        V1ProjectWithDatabaseResponseStatus = "COMING_UP"
+	V1ProjectWithDatabaseResponseStatusGOINGDOWN       V1ProjectWithDatabaseResponseStatus = "GOING_DOWN"
+	V1ProjectWithDatabaseResponseStatusINACTIVE        V1ProjectWithDatabaseResponseStatus = "INACTIVE"
+	V1ProjectWithDatabaseResponseStatusINITFAILED      V1ProjectWithDatabaseResponseStatus = "INIT_FAILED"
+	V1ProjectWithDatabaseResponseStatusPAUSEFAILED     V1ProjectWithDatabaseResponseStatus = "PAUSE_FAILED"
+	V1ProjectWithDatabaseResponseStatusPAUSING         V1ProjectWithDatabaseResponseStatus = "PAUSING"
+	V1ProjectWithDatabaseResponseStatusREMOVED         V1ProjectWithDatabaseResponseStatus = "REMOVED"
+	V1ProjectWithDatabaseResponseStatusRESIZING        V1ProjectWithDatabaseResponseStatus = "RESIZING"
+	V1ProjectWithDatabaseResponseStatusRESTARTING      V1ProjectWithDatabaseResponseStatus = "RESTARTING"
+	V1ProjectWithDatabaseResponseStatusRESTOREFAILED   V1ProjectWithDatabaseResponseStatus = "RESTORE_FAILED"
+	V1ProjectWithDatabaseResponseStatusRESTORING       V1ProjectWithDatabaseResponseStatus = "RESTORING"
+	V1ProjectWithDatabaseResponseStatusUNKNOWN         V1ProjectWithDatabaseResponseStatus = "UNKNOWN"
+	V1ProjectWithDatabaseResponseStatusUPGRADING       V1ProjectWithDatabaseResponseStatus = "UPGRADING"
 )
 
 // Defines values for V1ServiceHealthResponseName.
@@ -328,9 +454,9 @@ const (
 
 // Defines values for V1ServiceHealthResponseStatus.
 const (
-	V1ServiceHealthResponseStatusACTIVEHEALTHY V1ServiceHealthResponseStatus = "ACTIVE_HEALTHY"
-	V1ServiceHealthResponseStatusCOMINGUP      V1ServiceHealthResponseStatus = "COMING_UP"
-	V1ServiceHealthResponseStatusUNHEALTHY     V1ServiceHealthResponseStatus = "UNHEALTHY"
+	ACTIVEHEALTHY V1ServiceHealthResponseStatus = "ACTIVE_HEALTHY"
+	COMINGUP      V1ServiceHealthResponseStatus = "COMING_UP"
+	UNHEALTHY     V1ServiceHealthResponseStatus = "UNHEALTHY"
 )
 
 // Defines values for VanitySubdomainConfigResponseStatus.
@@ -364,6 +490,18 @@ const (
 	V1GetServicesHealthParamsServicesStorage  V1GetServicesHealthParamsServices = "storage"
 )
 
+// Defines values for V1ListAllSnippetsParamsSortBy.
+const (
+	InsertedAt V1ListAllSnippetsParamsSortBy = "inserted_at"
+	Name       V1ListAllSnippetsParamsSortBy = "name"
+)
+
+// Defines values for V1ListAllSnippetsParamsSortOrder.
+const (
+	Asc  V1ListAllSnippetsParamsSortOrder = "asc"
+	Desc V1ListAllSnippetsParamsSortOrder = "desc"
+)
+
 // ActivateVanitySubdomainResponse defines model for ActivateVanitySubdomainResponse.
 type ActivateVanitySubdomainResponse struct {
 	CustomDomain string `json:"custom_domain"`
@@ -371,8 +509,24 @@ type ActivateVanitySubdomainResponse struct {
 
 // ApiKeyResponse defines model for ApiKeyResponse.
 type ApiKeyResponse struct {
-	ApiKey string `json:"api_key"`
-	Name   string `json:"name"`
+	ApiKey            string                   `json:"api_key"`
+	Description       *string                  `json:"description"`
+	Hash              *string                  `json:"hash"`
+	Id                *string                  `json:"id"`
+	InsertedAt        *string                  `json:"inserted_at"`
+	Name              string                   `json:"name"`
+	Prefix            *string                  `json:"prefix"`
+	SecretJwtTemplate *ApiKeySecretJWTTemplate `json:"secret_jwt_template"`
+	Type              *ApiKeyResponseType      `json:"type"`
+	UpdatedAt         *string                  `json:"updated_at"`
+}
+
+// ApiKeyResponseType defines model for ApiKeyResponse.Type.
+type ApiKeyResponseType string
+
+// ApiKeySecretJWTTemplate defines model for ApiKeySecretJWTTemplate.
+type ApiKeySecretJWTTemplate struct {
+	Role string `json:"role"`
 }
 
 // AttributeMapping defines model for AttributeMapping.
@@ -407,181 +561,185 @@ type AttributeValue_Default struct {
 
 // AuthConfigResponse defines model for AuthConfigResponse.
 type AuthConfigResponse struct {
-	ApiMaxRequestDuration                         *float32 `json:"api_max_request_duration"`
-	DbMaxPoolSize                                 *float32 `json:"db_max_pool_size"`
-	DisableSignup                                 *bool    `json:"disable_signup"`
-	ExternalAnonymousUsersEnabled                 *bool    `json:"external_anonymous_users_enabled"`
-	ExternalAppleAdditionalClientIds              *string  `json:"external_apple_additional_client_ids"`
-	ExternalAppleClientId                         *string  `json:"external_apple_client_id"`
-	ExternalAppleEnabled                          *bool    `json:"external_apple_enabled"`
-	ExternalAppleSecret                           *string  `json:"external_apple_secret"`
-	ExternalAzureClientId                         *string  `json:"external_azure_client_id"`
-	ExternalAzureEnabled                          *bool    `json:"external_azure_enabled"`
-	ExternalAzureSecret                           *string  `json:"external_azure_secret"`
-	ExternalAzureUrl                              *string  `json:"external_azure_url"`
-	ExternalBitbucketClientId                     *string  `json:"external_bitbucket_client_id"`
-	ExternalBitbucketEnabled                      *bool    `json:"external_bitbucket_enabled"`
-	ExternalBitbucketSecret                       *string  `json:"external_bitbucket_secret"`
-	ExternalDiscordClientId                       *string  `json:"external_discord_client_id"`
-	ExternalDiscordEnabled                        *bool    `json:"external_discord_enabled"`
-	ExternalDiscordSecret                         *string  `json:"external_discord_secret"`
-	ExternalEmailEnabled                          *bool    `json:"external_email_enabled"`
-	ExternalFacebookClientId                      *string  `json:"external_facebook_client_id"`
-	ExternalFacebookEnabled                       *bool    `json:"external_facebook_enabled"`
-	ExternalFacebookSecret                        *string  `json:"external_facebook_secret"`
-	ExternalFigmaClientId                         *string  `json:"external_figma_client_id"`
-	ExternalFigmaEnabled                          *bool    `json:"external_figma_enabled"`
-	ExternalFigmaSecret                           *string  `json:"external_figma_secret"`
-	ExternalGithubClientId                        *string  `json:"external_github_client_id"`
-	ExternalGithubEnabled                         *bool    `json:"external_github_enabled"`
-	ExternalGithubSecret                          *string  `json:"external_github_secret"`
-	ExternalGitlabClientId                        *string  `json:"external_gitlab_client_id"`
-	ExternalGitlabEnabled                         *bool    `json:"external_gitlab_enabled"`
-	ExternalGitlabSecret                          *string  `json:"external_gitlab_secret"`
-	ExternalGitlabUrl                             *string  `json:"external_gitlab_url"`
-	ExternalGoogleAdditionalClientIds             *string  `json:"external_google_additional_client_ids"`
-	ExternalGoogleClientId                        *string  `json:"external_google_client_id"`
-	ExternalGoogleEnabled                         *bool    `json:"external_google_enabled"`
-	ExternalGoogleSecret                          *string  `json:"external_google_secret"`
-	ExternalGoogleSkipNonceCheck                  *bool    `json:"external_google_skip_nonce_check"`
-	ExternalKakaoClientId                         *string  `json:"external_kakao_client_id"`
-	ExternalKakaoEnabled                          *bool    `json:"external_kakao_enabled"`
-	ExternalKakaoSecret                           *string  `json:"external_kakao_secret"`
-	ExternalKeycloakClientId                      *string  `json:"external_keycloak_client_id"`
-	ExternalKeycloakEnabled                       *bool    `json:"external_keycloak_enabled"`
-	ExternalKeycloakSecret                        *string  `json:"external_keycloak_secret"`
-	ExternalKeycloakUrl                           *string  `json:"external_keycloak_url"`
-	ExternalLinkedinOidcClientId                  *string  `json:"external_linkedin_oidc_client_id"`
-	ExternalLinkedinOidcEnabled                   *bool    `json:"external_linkedin_oidc_enabled"`
-	ExternalLinkedinOidcSecret                    *string  `json:"external_linkedin_oidc_secret"`
-	ExternalNotionClientId                        *string  `json:"external_notion_client_id"`
-	ExternalNotionEnabled                         *bool    `json:"external_notion_enabled"`
-	ExternalNotionSecret                          *string  `json:"external_notion_secret"`
-	ExternalPhoneEnabled                          *bool    `json:"external_phone_enabled"`
-	ExternalSlackClientId                         *string  `json:"external_slack_client_id"`
-	ExternalSlackEnabled                          *bool    `json:"external_slack_enabled"`
-	ExternalSlackOidcClientId                     *string  `json:"external_slack_oidc_client_id"`
-	ExternalSlackOidcEnabled                      *bool    `json:"external_slack_oidc_enabled"`
-	ExternalSlackOidcSecret                       *string  `json:"external_slack_oidc_secret"`
-	ExternalSlackSecret                           *string  `json:"external_slack_secret"`
-	ExternalSpotifyClientId                       *string  `json:"external_spotify_client_id"`
-	ExternalSpotifyEnabled                        *bool    `json:"external_spotify_enabled"`
-	ExternalSpotifySecret                         *string  `json:"external_spotify_secret"`
-	ExternalTwitchClientId                        *string  `json:"external_twitch_client_id"`
-	ExternalTwitchEnabled                         *bool    `json:"external_twitch_enabled"`
-	ExternalTwitchSecret                          *string  `json:"external_twitch_secret"`
-	ExternalTwitterClientId                       *string  `json:"external_twitter_client_id"`
-	ExternalTwitterEnabled                        *bool    `json:"external_twitter_enabled"`
-	ExternalTwitterSecret                         *string  `json:"external_twitter_secret"`
-	ExternalWorkosClientId                        *string  `json:"external_workos_client_id"`
-	ExternalWorkosEnabled                         *bool    `json:"external_workos_enabled"`
-	ExternalWorkosSecret                          *string  `json:"external_workos_secret"`
-	ExternalWorkosUrl                             *string  `json:"external_workos_url"`
-	ExternalZoomClientId                          *string  `json:"external_zoom_client_id"`
-	ExternalZoomEnabled                           *bool    `json:"external_zoom_enabled"`
-	ExternalZoomSecret                            *string  `json:"external_zoom_secret"`
-	HookCustomAccessTokenEnabled                  *bool    `json:"hook_custom_access_token_enabled"`
-	HookCustomAccessTokenSecrets                  *string  `json:"hook_custom_access_token_secrets"`
-	HookCustomAccessTokenUri                      *string  `json:"hook_custom_access_token_uri"`
-	HookMfaVerificationAttemptEnabled             *bool    `json:"hook_mfa_verification_attempt_enabled"`
-	HookMfaVerificationAttemptSecrets             *string  `json:"hook_mfa_verification_attempt_secrets"`
-	HookMfaVerificationAttemptUri                 *string  `json:"hook_mfa_verification_attempt_uri"`
-	HookPasswordVerificationAttemptEnabled        *bool    `json:"hook_password_verification_attempt_enabled"`
-	HookPasswordVerificationAttemptSecrets        *string  `json:"hook_password_verification_attempt_secrets"`
-	HookPasswordVerificationAttemptUri            *string  `json:"hook_password_verification_attempt_uri"`
-	HookSendEmailEnabled                          *bool    `json:"hook_send_email_enabled"`
-	HookSendEmailSecrets                          *string  `json:"hook_send_email_secrets"`
-	HookSendEmailUri                              *string  `json:"hook_send_email_uri"`
-	HookSendSmsEnabled                            *bool    `json:"hook_send_sms_enabled"`
-	HookSendSmsSecrets                            *string  `json:"hook_send_sms_secrets"`
-	HookSendSmsUri                                *string  `json:"hook_send_sms_uri"`
-	JwtExp                                        *float32 `json:"jwt_exp"`
-	MailerAllowUnverifiedEmailSignIns             *bool    `json:"mailer_allow_unverified_email_sign_ins"`
-	MailerAutoconfirm                             *bool    `json:"mailer_autoconfirm"`
-	MailerOtpExp                                  float32  `json:"mailer_otp_exp"`
-	MailerOtpLength                               *float32 `json:"mailer_otp_length"`
-	MailerSecureEmailChangeEnabled                *bool    `json:"mailer_secure_email_change_enabled"`
-	MailerSubjectsConfirmation                    *string  `json:"mailer_subjects_confirmation"`
-	MailerSubjectsEmailChange                     *string  `json:"mailer_subjects_email_change"`
-	MailerSubjectsInvite                          *string  `json:"mailer_subjects_invite"`
-	MailerSubjectsMagicLink                       *string  `json:"mailer_subjects_magic_link"`
-	MailerSubjectsReauthentication                *string  `json:"mailer_subjects_reauthentication"`
-	MailerSubjectsRecovery                        *string  `json:"mailer_subjects_recovery"`
-	MailerTemplatesConfirmationContent            *string  `json:"mailer_templates_confirmation_content"`
-	MailerTemplatesEmailChangeContent             *string  `json:"mailer_templates_email_change_content"`
-	MailerTemplatesInviteContent                  *string  `json:"mailer_templates_invite_content"`
-	MailerTemplatesMagicLinkContent               *string  `json:"mailer_templates_magic_link_content"`
-	MailerTemplatesReauthenticationContent        *string  `json:"mailer_templates_reauthentication_content"`
-	MailerTemplatesRecoveryContent                *string  `json:"mailer_templates_recovery_content"`
-	MfaMaxEnrolledFactors                         *float32 `json:"mfa_max_enrolled_factors"`
-	MfaPhoneEnrollEnabled                         *bool    `json:"mfa_phone_enroll_enabled"`
-	MfaPhoneMaxFrequency                          *float32 `json:"mfa_phone_max_frequency"`
-	MfaPhoneOtpLength                             float32  `json:"mfa_phone_otp_length"`
-	MfaPhoneTemplate                              *string  `json:"mfa_phone_template"`
-	MfaPhoneVerifyEnabled                         *bool    `json:"mfa_phone_verify_enabled"`
-	MfaTotpEnrollEnabled                          *bool    `json:"mfa_totp_enroll_enabled"`
-	MfaTotpVerifyEnabled                          *bool    `json:"mfa_totp_verify_enabled"`
-	PasswordHibpEnabled                           *bool    `json:"password_hibp_enabled"`
-	PasswordMinLength                             *float32 `json:"password_min_length"`
-	PasswordRequiredCharacters                    *string  `json:"password_required_characters"`
-	RateLimitAnonymousUsers                       *float32 `json:"rate_limit_anonymous_users"`
-	RateLimitEmailSent                            *float32 `json:"rate_limit_email_sent"`
-	RateLimitOtp                                  *float32 `json:"rate_limit_otp"`
-	RateLimitSmsSent                              *float32 `json:"rate_limit_sms_sent"`
-	RateLimitTokenRefresh                         *float32 `json:"rate_limit_token_refresh"`
-	RateLimitVerify                               *float32 `json:"rate_limit_verify"`
-	RefreshTokenRotationEnabled                   *bool    `json:"refresh_token_rotation_enabled"`
-	SamlEnabled                                   *bool    `json:"saml_enabled"`
-	SamlExternalUrl                               *string  `json:"saml_external_url"`
-	SecurityCaptchaEnabled                        *bool    `json:"security_captcha_enabled"`
-	SecurityCaptchaProvider                       *string  `json:"security_captcha_provider"`
-	SecurityCaptchaSecret                         *string  `json:"security_captcha_secret"`
-	SecurityManualLinkingEnabled                  *bool    `json:"security_manual_linking_enabled"`
-	SecurityRefreshTokenReuseInterval             *float32 `json:"security_refresh_token_reuse_interval"`
-	SecurityUpdatePasswordRequireReauthentication *bool    `json:"security_update_password_require_reauthentication"`
-	SessionsInactivityTimeout                     *float32 `json:"sessions_inactivity_timeout"`
-	SessionsSinglePerUser                         *bool    `json:"sessions_single_per_user"`
-	SessionsTags                                  *string  `json:"sessions_tags"`
-	SessionsTimebox                               *float32 `json:"sessions_timebox"`
-	SiteUrl                                       *string  `json:"site_url"`
-	SmsAutoconfirm                                *bool    `json:"sms_autoconfirm"`
-	SmsMaxFrequency                               *float32 `json:"sms_max_frequency"`
-	SmsMessagebirdAccessKey                       *string  `json:"sms_messagebird_access_key"`
-	SmsMessagebirdOriginator                      *string  `json:"sms_messagebird_originator"`
-	SmsOtpExp                                     *float32 `json:"sms_otp_exp"`
-	SmsOtpLength                                  float32  `json:"sms_otp_length"`
-	SmsProvider                                   *string  `json:"sms_provider"`
-	SmsTemplate                                   *string  `json:"sms_template"`
-	SmsTestOtp                                    *string  `json:"sms_test_otp"`
-	SmsTestOtpValidUntil                          *string  `json:"sms_test_otp_valid_until"`
-	SmsTextlocalApiKey                            *string  `json:"sms_textlocal_api_key"`
-	SmsTextlocalSender                            *string  `json:"sms_textlocal_sender"`
-	SmsTwilioAccountSid                           *string  `json:"sms_twilio_account_sid"`
-	SmsTwilioAuthToken                            *string  `json:"sms_twilio_auth_token"`
-	SmsTwilioContentSid                           *string  `json:"sms_twilio_content_sid"`
-	SmsTwilioMessageServiceSid                    *string  `json:"sms_twilio_message_service_sid"`
-	SmsTwilioVerifyAccountSid                     *string  `json:"sms_twilio_verify_account_sid"`
-	SmsTwilioVerifyAuthToken                      *string  `json:"sms_twilio_verify_auth_token"`
-	SmsTwilioVerifyMessageServiceSid              *string  `json:"sms_twilio_verify_message_service_sid"`
-	SmsVonageApiKey                               *string  `json:"sms_vonage_api_key"`
-	SmsVonageApiSecret                            *string  `json:"sms_vonage_api_secret"`
-	SmsVonageFrom                                 *string  `json:"sms_vonage_from"`
-	SmtpAdminEmail                                *string  `json:"smtp_admin_email"`
-	SmtpHost                                      *string  `json:"smtp_host"`
-	SmtpMaxFrequency                              *float32 `json:"smtp_max_frequency"`
-	SmtpPass                                      *string  `json:"smtp_pass"`
-	SmtpPort                                      *string  `json:"smtp_port"`
-	SmtpSenderName                                *string  `json:"smtp_sender_name"`
-	SmtpUser                                      *string  `json:"smtp_user"`
-	UriAllowList                                  *string  `json:"uri_allow_list"`
+	ApiMaxRequestDuration                         *int    `json:"api_max_request_duration"`
+	DbMaxPoolSize                                 *int    `json:"db_max_pool_size"`
+	DisableSignup                                 *bool   `json:"disable_signup"`
+	ExternalAnonymousUsersEnabled                 *bool   `json:"external_anonymous_users_enabled"`
+	ExternalAppleAdditionalClientIds              *string `json:"external_apple_additional_client_ids"`
+	ExternalAppleClientId                         *string `json:"external_apple_client_id"`
+	ExternalAppleEnabled                          *bool   `json:"external_apple_enabled"`
+	ExternalAppleSecret                           *string `json:"external_apple_secret"`
+	ExternalAzureClientId                         *string `json:"external_azure_client_id"`
+	ExternalAzureEnabled                          *bool   `json:"external_azure_enabled"`
+	ExternalAzureSecret                           *string `json:"external_azure_secret"`
+	ExternalAzureUrl                              *string `json:"external_azure_url"`
+	ExternalBitbucketClientId                     *string `json:"external_bitbucket_client_id"`
+	ExternalBitbucketEnabled                      *bool   `json:"external_bitbucket_enabled"`
+	ExternalBitbucketSecret                       *string `json:"external_bitbucket_secret"`
+	ExternalDiscordClientId                       *string `json:"external_discord_client_id"`
+	ExternalDiscordEnabled                        *bool   `json:"external_discord_enabled"`
+	ExternalDiscordSecret                         *string `json:"external_discord_secret"`
+	ExternalEmailEnabled                          *bool   `json:"external_email_enabled"`
+	ExternalFacebookClientId                      *string `json:"external_facebook_client_id"`
+	ExternalFacebookEnabled                       *bool   `json:"external_facebook_enabled"`
+	ExternalFacebookSecret                        *string `json:"external_facebook_secret"`
+	ExternalFigmaClientId                         *string `json:"external_figma_client_id"`
+	ExternalFigmaEnabled                          *bool   `json:"external_figma_enabled"`
+	ExternalFigmaSecret                           *string `json:"external_figma_secret"`
+	ExternalGithubClientId                        *string `json:"external_github_client_id"`
+	ExternalGithubEnabled                         *bool   `json:"external_github_enabled"`
+	ExternalGithubSecret                          *string `json:"external_github_secret"`
+	ExternalGitlabClientId                        *string `json:"external_gitlab_client_id"`
+	ExternalGitlabEnabled                         *bool   `json:"external_gitlab_enabled"`
+	ExternalGitlabSecret                          *string `json:"external_gitlab_secret"`
+	ExternalGitlabUrl                             *string `json:"external_gitlab_url"`
+	ExternalGoogleAdditionalClientIds             *string `json:"external_google_additional_client_ids"`
+	ExternalGoogleClientId                        *string `json:"external_google_client_id"`
+	ExternalGoogleEnabled                         *bool   `json:"external_google_enabled"`
+	ExternalGoogleSecret                          *string `json:"external_google_secret"`
+	ExternalGoogleSkipNonceCheck                  *bool   `json:"external_google_skip_nonce_check"`
+	ExternalKakaoClientId                         *string `json:"external_kakao_client_id"`
+	ExternalKakaoEnabled                          *bool   `json:"external_kakao_enabled"`
+	ExternalKakaoSecret                           *string `json:"external_kakao_secret"`
+	ExternalKeycloakClientId                      *string `json:"external_keycloak_client_id"`
+	ExternalKeycloakEnabled                       *bool   `json:"external_keycloak_enabled"`
+	ExternalKeycloakSecret                        *string `json:"external_keycloak_secret"`
+	ExternalKeycloakUrl                           *string `json:"external_keycloak_url"`
+	ExternalLinkedinOidcClientId                  *string `json:"external_linkedin_oidc_client_id"`
+	ExternalLinkedinOidcEnabled                   *bool   `json:"external_linkedin_oidc_enabled"`
+	ExternalLinkedinOidcSecret                    *string `json:"external_linkedin_oidc_secret"`
+	ExternalNotionClientId                        *string `json:"external_notion_client_id"`
+	ExternalNotionEnabled                         *bool   `json:"external_notion_enabled"`
+	ExternalNotionSecret                          *string `json:"external_notion_secret"`
+	ExternalPhoneEnabled                          *bool   `json:"external_phone_enabled"`
+	ExternalSlackClientId                         *string `json:"external_slack_client_id"`
+	ExternalSlackEnabled                          *bool   `json:"external_slack_enabled"`
+	ExternalSlackOidcClientId                     *string `json:"external_slack_oidc_client_id"`
+	ExternalSlackOidcEnabled                      *bool   `json:"external_slack_oidc_enabled"`
+	ExternalSlackOidcSecret                       *string `json:"external_slack_oidc_secret"`
+	ExternalSlackSecret                           *string `json:"external_slack_secret"`
+	ExternalSpotifyClientId                       *string `json:"external_spotify_client_id"`
+	ExternalSpotifyEnabled                        *bool   `json:"external_spotify_enabled"`
+	ExternalSpotifySecret                         *string `json:"external_spotify_secret"`
+	ExternalTwitchClientId                        *string `json:"external_twitch_client_id"`
+	ExternalTwitchEnabled                         *bool   `json:"external_twitch_enabled"`
+	ExternalTwitchSecret                          *string `json:"external_twitch_secret"`
+	ExternalTwitterClientId                       *string `json:"external_twitter_client_id"`
+	ExternalTwitterEnabled                        *bool   `json:"external_twitter_enabled"`
+	ExternalTwitterSecret                         *string `json:"external_twitter_secret"`
+	ExternalWorkosClientId                        *string `json:"external_workos_client_id"`
+	ExternalWorkosEnabled                         *bool   `json:"external_workos_enabled"`
+	ExternalWorkosSecret                          *string `json:"external_workos_secret"`
+	ExternalWorkosUrl                             *string `json:"external_workos_url"`
+	ExternalZoomClientId                          *string `json:"external_zoom_client_id"`
+	ExternalZoomEnabled                           *bool   `json:"external_zoom_enabled"`
+	ExternalZoomSecret                            *string `json:"external_zoom_secret"`
+	HookCustomAccessTokenEnabled                  *bool   `json:"hook_custom_access_token_enabled"`
+	HookCustomAccessTokenSecrets                  *string `json:"hook_custom_access_token_secrets"`
+	HookCustomAccessTokenUri                      *string `json:"hook_custom_access_token_uri"`
+	HookMfaVerificationAttemptEnabled             *bool   `json:"hook_mfa_verification_attempt_enabled"`
+	HookMfaVerificationAttemptSecrets             *string `json:"hook_mfa_verification_attempt_secrets"`
+	HookMfaVerificationAttemptUri                 *string `json:"hook_mfa_verification_attempt_uri"`
+	HookPasswordVerificationAttemptEnabled        *bool   `json:"hook_password_verification_attempt_enabled"`
+	HookPasswordVerificationAttemptSecrets        *string `json:"hook_password_verification_attempt_secrets"`
+	HookPasswordVerificationAttemptUri            *string `json:"hook_password_verification_attempt_uri"`
+	HookSendEmailEnabled                          *bool   `json:"hook_send_email_enabled"`
+	HookSendEmailSecrets                          *string `json:"hook_send_email_secrets"`
+	HookSendEmailUri                              *string `json:"hook_send_email_uri"`
+	HookSendSmsEnabled                            *bool   `json:"hook_send_sms_enabled"`
+	HookSendSmsSecrets                            *string `json:"hook_send_sms_secrets"`
+	HookSendSmsUri                                *string `json:"hook_send_sms_uri"`
+	JwtExp                                        *int    `json:"jwt_exp"`
+	MailerAllowUnverifiedEmailSignIns             *bool   `json:"mailer_allow_unverified_email_sign_ins"`
+	MailerAutoconfirm                             *bool   `json:"mailer_autoconfirm"`
+	MailerOtpExp                                  int     `json:"mailer_otp_exp"`
+	MailerOtpLength                               *int    `json:"mailer_otp_length"`
+	MailerSecureEmailChangeEnabled                *bool   `json:"mailer_secure_email_change_enabled"`
+	MailerSubjectsConfirmation                    *string `json:"mailer_subjects_confirmation"`
+	MailerSubjectsEmailChange                     *string `json:"mailer_subjects_email_change"`
+	MailerSubjectsInvite                          *string `json:"mailer_subjects_invite"`
+	MailerSubjectsMagicLink                       *string `json:"mailer_subjects_magic_link"`
+	MailerSubjectsReauthentication                *string `json:"mailer_subjects_reauthentication"`
+	MailerSubjectsRecovery                        *string `json:"mailer_subjects_recovery"`
+	MailerTemplatesConfirmationContent            *string `json:"mailer_templates_confirmation_content"`
+	MailerTemplatesEmailChangeContent             *string `json:"mailer_templates_email_change_content"`
+	MailerTemplatesInviteContent                  *string `json:"mailer_templates_invite_content"`
+	MailerTemplatesMagicLinkContent               *string `json:"mailer_templates_magic_link_content"`
+	MailerTemplatesReauthenticationContent        *string `json:"mailer_templates_reauthentication_content"`
+	MailerTemplatesRecoveryContent                *string `json:"mailer_templates_recovery_content"`
+	MfaMaxEnrolledFactors                         *int    `json:"mfa_max_enrolled_factors"`
+	MfaPhoneEnrollEnabled                         *bool   `json:"mfa_phone_enroll_enabled"`
+	MfaPhoneMaxFrequency                          *int    `json:"mfa_phone_max_frequency"`
+	MfaPhoneOtpLength                             int     `json:"mfa_phone_otp_length"`
+	MfaPhoneTemplate                              *string `json:"mfa_phone_template"`
+	MfaPhoneVerifyEnabled                         *bool   `json:"mfa_phone_verify_enabled"`
+	MfaTotpEnrollEnabled                          *bool   `json:"mfa_totp_enroll_enabled"`
+	MfaTotpVerifyEnabled                          *bool   `json:"mfa_totp_verify_enabled"`
+	MfaWebAuthnEnrollEnabled                      *bool   `json:"mfa_web_authn_enroll_enabled"`
+	MfaWebAuthnVerifyEnabled                      *bool   `json:"mfa_web_authn_verify_enabled"`
+	PasswordHibpEnabled                           *bool   `json:"password_hibp_enabled"`
+	PasswordMinLength                             *int    `json:"password_min_length"`
+	PasswordRequiredCharacters                    *string `json:"password_required_characters"`
+	RateLimitAnonymousUsers                       *int    `json:"rate_limit_anonymous_users"`
+	RateLimitEmailSent                            *int    `json:"rate_limit_email_sent"`
+	RateLimitOtp                                  *int    `json:"rate_limit_otp"`
+	RateLimitSmsSent                              *int    `json:"rate_limit_sms_sent"`
+	RateLimitTokenRefresh                         *int    `json:"rate_limit_token_refresh"`
+	RateLimitVerify                               *int    `json:"rate_limit_verify"`
+	RefreshTokenRotationEnabled                   *bool   `json:"refresh_token_rotation_enabled"`
+	SamlAllowEncryptedAssertions                  *bool   `json:"saml_allow_encrypted_assertions"`
+	SamlEnabled                                   *bool   `json:"saml_enabled"`
+	SamlExternalUrl                               *string `json:"saml_external_url"`
+	SecurityCaptchaEnabled                        *bool   `json:"security_captcha_enabled"`
+	SecurityCaptchaProvider                       *string `json:"security_captcha_provider"`
+	SecurityCaptchaSecret                         *string `json:"security_captcha_secret"`
+	SecurityManualLinkingEnabled                  *bool   `json:"security_manual_linking_enabled"`
+	SecurityRefreshTokenReuseInterval             *int    `json:"security_refresh_token_reuse_interval"`
+	SecurityUpdatePasswordRequireReauthentication *bool   `json:"security_update_password_require_reauthentication"`
+	SessionsInactivityTimeout                     *int    `json:"sessions_inactivity_timeout"`
+	SessionsSinglePerUser                         *bool   `json:"sessions_single_per_user"`
+	SessionsTags                                  *string `json:"sessions_tags"`
+	SessionsTimebox                               *int    `json:"sessions_timebox"`
+	SiteUrl                                       *string `json:"site_url"`
+	SmsAutoconfirm                                *bool   `json:"sms_autoconfirm"`
+	SmsMaxFrequency                               *int    `json:"sms_max_frequency"`
+	SmsMessagebirdAccessKey                       *string `json:"sms_messagebird_access_key"`
+	SmsMessagebirdOriginator                      *string `json:"sms_messagebird_originator"`
+	SmsOtpExp                                     *int    `json:"sms_otp_exp"`
+	SmsOtpLength                                  int     `json:"sms_otp_length"`
+	SmsProvider                                   *string `json:"sms_provider"`
+	SmsTemplate                                   *string `json:"sms_template"`
+	SmsTestOtp                                    *string `json:"sms_test_otp"`
+	SmsTestOtpValidUntil                          *string `json:"sms_test_otp_valid_until"`
+	SmsTextlocalApiKey                            *string `json:"sms_textlocal_api_key"`
+	SmsTextlocalSender                            *string `json:"sms_textlocal_sender"`
+	SmsTwilioAccountSid                           *string `json:"sms_twilio_account_sid"`
+	SmsTwilioAuthToken                            *string `json:"sms_twilio_auth_token"`
+	SmsTwilioContentSid                           *string `json:"sms_twilio_content_sid"`
+	SmsTwilioMessageServiceSid                    *string `json:"sms_twilio_message_service_sid"`
+	SmsTwilioVerifyAccountSid                     *string `json:"sms_twilio_verify_account_sid"`
+	SmsTwilioVerifyAuthToken                      *string `json:"sms_twilio_verify_auth_token"`
+	SmsTwilioVerifyMessageServiceSid              *string `json:"sms_twilio_verify_message_service_sid"`
+	SmsVonageApiKey                               *string `json:"sms_vonage_api_key"`
+	SmsVonageApiSecret                            *string `json:"sms_vonage_api_secret"`
+	SmsVonageFrom                                 *string `json:"sms_vonage_from"`
+	SmtpAdminEmail                                *string `json:"smtp_admin_email"`
+	SmtpHost                                      *string `json:"smtp_host"`
+	SmtpMaxFrequency                              *int    `json:"smtp_max_frequency"`
+	SmtpPass                                      *string `json:"smtp_pass"`
+	SmtpPort                                      *string `json:"smtp_port"`
+	SmtpSenderName                                *string `json:"smtp_sender_name"`
+	SmtpUser                                      *string `json:"smtp_user"`
+	UriAllowList                                  *string `json:"uri_allow_list"`
 }
 
 // AuthHealthResponse defines model for AuthHealthResponse.
 type AuthHealthResponse struct {
-	Description string `json:"description"`
-	Name        string `json:"name"`
-	Version     string `json:"version"`
+	Name AuthHealthResponseName `json:"name"`
 }
+
+// AuthHealthResponseName defines model for AuthHealthResponse.Name.
+type AuthHealthResponseName string
 
 // BillingPlanId defines model for BillingPlanId.
 type BillingPlanId string
@@ -598,38 +756,43 @@ type BranchDetailResponse struct {
 	DbPort          int                        `json:"db_port"`
 	DbUser          *string                    `json:"db_user,omitempty"`
 	JwtSecret       *string                    `json:"jwt_secret,omitempty"`
+	PostgresEngine  string                     `json:"postgres_engine"`
 	PostgresVersion string                     `json:"postgres_version"`
 	Ref             string                     `json:"ref"`
+	ReleaseChannel  string                     `json:"release_channel"`
 	Status          BranchDetailResponseStatus `json:"status"`
 }
 
 // BranchDetailResponseStatus defines model for BranchDetailResponse.Status.
 type BranchDetailResponseStatus string
 
-// BranchResetResponse defines model for BranchResetResponse.
-type BranchResetResponse struct {
-	Message string `json:"message"`
-}
-
 // BranchResponse defines model for BranchResponse.
 type BranchResponse struct {
-	CreatedAt        string               `json:"created_at"`
-	GitBranch        *string              `json:"git_branch,omitempty"`
-	Id               string               `json:"id"`
-	IsDefault        bool                 `json:"is_default"`
+	CreatedAt string  `json:"created_at"`
+	GitBranch *string `json:"git_branch,omitempty"`
+	Id        string  `json:"id"`
+	IsDefault bool    `json:"is_default"`
+
+	// LatestCheckRunId This field is deprecated and will not be populated.
+	// Deprecated:
 	LatestCheckRunId *float32             `json:"latest_check_run_id,omitempty"`
 	Name             string               `json:"name"`
 	ParentProjectRef string               `json:"parent_project_ref"`
 	Persistent       bool                 `json:"persistent"`
-	PrNumber         *float32             `json:"pr_number,omitempty"`
+	PrNumber         *int32               `json:"pr_number,omitempty"`
 	ProjectRef       string               `json:"project_ref"`
-	ResetOnPush      bool                 `json:"reset_on_push"`
 	Status           BranchResponseStatus `json:"status"`
 	UpdatedAt        string               `json:"updated_at"`
 }
 
 // BranchResponseStatus defines model for BranchResponse.Status.
 type BranchResponseStatus string
+
+// BranchUpdateResponse defines model for BranchUpdateResponse.
+type BranchUpdateResponse struct {
+	Message       string `json:"message"`
+	WorkflowRunId string `json:"workflow_run_id"`
+}
 
 // CfResponse defines model for CfResponse.
 type CfResponse struct {
@@ -639,17 +802,31 @@ type CfResponse struct {
 	Success  bool                     `json:"success"`
 }
 
+// CreateApiKeyBody defines model for CreateApiKeyBody.
+type CreateApiKeyBody struct {
+	Description       *string                  `json:"description"`
+	SecretJwtTemplate *ApiKeySecretJWTTemplate `json:"secret_jwt_template"`
+	Type              CreateApiKeyBodyType     `json:"type"`
+}
+
+// CreateApiKeyBodyType defines model for CreateApiKeyBody.Type.
+type CreateApiKeyBodyType string
+
 // CreateBranchBody defines model for CreateBranchBody.
 type CreateBranchBody struct {
 	BranchName          string               `json:"branch_name"`
 	DesiredInstanceSize *DesiredInstanceSize `json:"desired_instance_size,omitempty"`
 	GitBranch           *string              `json:"git_branch,omitempty"`
 	Persistent          *bool                `json:"persistent,omitempty"`
-	Region              *string              `json:"region,omitempty"`
+
+	// PostgresEngine Postgres engine version. If not provided, the latest version will be used.
+	PostgresEngine *PostgresEngine `json:"postgres_engine,omitempty"`
+	Region         *string         `json:"region,omitempty"`
+	ReleaseChannel *ReleaseChannel `json:"release_channel,omitempty"`
 }
 
-// CreateOrganizationBodyV1 defines model for CreateOrganizationBodyV1.
-type CreateOrganizationBodyV1 struct {
+// CreateOrganizationV1Dto defines model for CreateOrganizationV1Dto.
+type CreateOrganizationV1Dto struct {
 	Name string `json:"name"`
 }
 
@@ -708,7 +885,7 @@ type DatabaseUpgradeStatus struct {
 	LatestStatusAt string                         `json:"latest_status_at"`
 	Progress       *DatabaseUpgradeStatusProgress `json:"progress,omitempty"`
 	Status         DatabaseUpgradeStatusStatus    `json:"status"`
-	TargetVersion  float32                        `json:"target_version"`
+	TargetVersion  int                            `json:"target_version"`
 }
 
 // DatabaseUpgradeStatusError defines model for DatabaseUpgradeStatus.Error.
@@ -718,7 +895,7 @@ type DatabaseUpgradeStatusError string
 type DatabaseUpgradeStatusProgress string
 
 // DatabaseUpgradeStatusStatus defines model for DatabaseUpgradeStatus.Status.
-type DatabaseUpgradeStatusStatus float32
+type DatabaseUpgradeStatusStatus int
 
 // DatabaseUpgradeStatusResponse defines model for DatabaseUpgradeStatusResponse.
 type DatabaseUpgradeStatusResponse struct {
@@ -747,17 +924,18 @@ type Domain struct {
 
 // FunctionResponse defines model for FunctionResponse.
 type FunctionResponse struct {
-	CreatedAt      float32                `json:"created_at"`
-	EntrypointPath *string                `json:"entrypoint_path,omitempty"`
-	Id             string                 `json:"id"`
-	ImportMap      *bool                  `json:"import_map,omitempty"`
-	ImportMapPath  *string                `json:"import_map_path,omitempty"`
-	Name           string                 `json:"name"`
-	Slug           string                 `json:"slug"`
-	Status         FunctionResponseStatus `json:"status"`
-	UpdatedAt      float32                `json:"updated_at"`
-	VerifyJwt      *bool                  `json:"verify_jwt,omitempty"`
-	Version        float32                `json:"version"`
+	ComputeMultiplier *float32               `json:"compute_multiplier,omitempty"`
+	CreatedAt         int64                  `json:"created_at"`
+	EntrypointPath    *string                `json:"entrypoint_path,omitempty"`
+	Id                string                 `json:"id"`
+	ImportMap         *bool                  `json:"import_map,omitempty"`
+	ImportMapPath     *string                `json:"import_map_path,omitempty"`
+	Name              string                 `json:"name"`
+	Slug              string                 `json:"slug"`
+	Status            FunctionResponseStatus `json:"status"`
+	UpdatedAt         int64                  `json:"updated_at"`
+	VerifyJwt         *bool                  `json:"verify_jwt,omitempty"`
+	Version           int                    `json:"version"`
 }
 
 // FunctionResponseStatus defines model for FunctionResponse.Status.
@@ -765,21 +943,27 @@ type FunctionResponseStatus string
 
 // FunctionSlugResponse defines model for FunctionSlugResponse.
 type FunctionSlugResponse struct {
-	CreatedAt      float32                    `json:"created_at"`
-	EntrypointPath *string                    `json:"entrypoint_path,omitempty"`
-	Id             string                     `json:"id"`
-	ImportMap      *bool                      `json:"import_map,omitempty"`
-	ImportMapPath  *string                    `json:"import_map_path,omitempty"`
-	Name           string                     `json:"name"`
-	Slug           string                     `json:"slug"`
-	Status         FunctionSlugResponseStatus `json:"status"`
-	UpdatedAt      float32                    `json:"updated_at"`
-	VerifyJwt      *bool                      `json:"verify_jwt,omitempty"`
-	Version        float32                    `json:"version"`
+	ComputeMultiplier *float32                   `json:"compute_multiplier,omitempty"`
+	CreatedAt         int64                      `json:"created_at"`
+	EntrypointPath    *string                    `json:"entrypoint_path,omitempty"`
+	Id                string                     `json:"id"`
+	ImportMap         *bool                      `json:"import_map,omitempty"`
+	ImportMapPath     *string                    `json:"import_map_path,omitempty"`
+	Name              string                     `json:"name"`
+	Slug              string                     `json:"slug"`
+	Status            FunctionSlugResponseStatus `json:"status"`
+	UpdatedAt         int64                      `json:"updated_at"`
+	VerifyJwt         *bool                      `json:"verify_jwt,omitempty"`
+	Version           int                        `json:"version"`
 }
 
 // FunctionSlugResponseStatus defines model for FunctionSlugResponse.Status.
 type FunctionSlugResponseStatus string
+
+// GetProjectAvailableRestoreVersionsResponse defines model for GetProjectAvailableRestoreVersionsResponse.
+type GetProjectAvailableRestoreVersionsResponse struct {
+	AvailableVersions []ProjectAvailableRestoreVersion `json:"available_versions"`
+}
 
 // GetProviderResponse defines model for GetProviderResponse.
 type GetProviderResponse struct {
@@ -820,6 +1004,13 @@ type NetworkRestrictionsResponseEntitlement string
 // NetworkRestrictionsResponseStatus defines model for NetworkRestrictionsResponse.Status.
 type NetworkRestrictionsResponseStatus string
 
+// OAuthRevokeTokenBodyDto defines model for OAuthRevokeTokenBodyDto.
+type OAuthRevokeTokenBodyDto struct {
+	ClientId     openapi_types.UUID `json:"client_id"`
+	ClientSecret string             `json:"client_secret"`
+	RefreshToken string             `json:"refresh_token"`
+}
+
 // OAuthTokenBody defines model for OAuthTokenBody.
 type OAuthTokenBody struct {
 	ClientId     string                  `json:"client_id"`
@@ -837,7 +1028,7 @@ type OAuthTokenBodyGrantType string
 // OAuthTokenResponse defines model for OAuthTokenResponse.
 type OAuthTokenResponse struct {
 	AccessToken  string                      `json:"access_token"`
-	ExpiresIn    float32                     `json:"expires_in"`
+	ExpiresIn    int64                       `json:"expires_in"`
 	RefreshToken string                      `json:"refresh_token"`
 	TokenType    OAuthTokenResponseTokenType `json:"token_type"`
 }
@@ -866,23 +1057,35 @@ type PgsodiumConfigResponse struct {
 // PostgresConfigResponse defines model for PostgresConfigResponse.
 type PostgresConfigResponse struct {
 	EffectiveCacheSize            *string                                       `json:"effective_cache_size,omitempty"`
+	LogicalDecodingWorkMem        *string                                       `json:"logical_decoding_work_mem,omitempty"`
 	MaintenanceWorkMem            *string                                       `json:"maintenance_work_mem,omitempty"`
 	MaxConnections                *int                                          `json:"max_connections,omitempty"`
 	MaxLocksPerTransaction        *int                                          `json:"max_locks_per_transaction,omitempty"`
 	MaxParallelMaintenanceWorkers *int                                          `json:"max_parallel_maintenance_workers,omitempty"`
 	MaxParallelWorkers            *int                                          `json:"max_parallel_workers,omitempty"`
 	MaxParallelWorkersPerGather   *int                                          `json:"max_parallel_workers_per_gather,omitempty"`
+	MaxReplicationSlots           *int                                          `json:"max_replication_slots,omitempty"`
+	MaxSlotWalKeepSize            *string                                       `json:"max_slot_wal_keep_size,omitempty"`
 	MaxStandbyArchiveDelay        *string                                       `json:"max_standby_archive_delay,omitempty"`
 	MaxStandbyStreamingDelay      *string                                       `json:"max_standby_streaming_delay,omitempty"`
+	MaxWalSenders                 *int                                          `json:"max_wal_senders,omitempty"`
+	MaxWalSize                    *string                                       `json:"max_wal_size,omitempty"`
 	MaxWorkerProcesses            *int                                          `json:"max_worker_processes,omitempty"`
 	SessionReplicationRole        *PostgresConfigResponseSessionReplicationRole `json:"session_replication_role,omitempty"`
 	SharedBuffers                 *string                                       `json:"shared_buffers,omitempty"`
 	StatementTimeout              *string                                       `json:"statement_timeout,omitempty"`
+	TrackActivityQuerySize        *string                                       `json:"track_activity_query_size,omitempty"`
+	TrackCommitTimestamp          *bool                                         `json:"track_commit_timestamp,omitempty"`
+	WalKeepSize                   *string                                       `json:"wal_keep_size,omitempty"`
+	WalSenderTimeout              *string                                       `json:"wal_sender_timeout,omitempty"`
 	WorkMem                       *string                                       `json:"work_mem,omitempty"`
 }
 
 // PostgresConfigResponseSessionReplicationRole defines model for PostgresConfigResponse.SessionReplicationRole.
 type PostgresConfigResponseSessionReplicationRole string
+
+// PostgresEngine Postgres engine version. If not provided, the latest version will be used.
+type PostgresEngine string
 
 // PostgrestConfigWithJWTSecretResponse defines model for PostgrestConfigWithJWTSecretResponse.
 type PostgrestConfigWithJWTSecretResponse struct {
@@ -895,16 +1098,30 @@ type PostgrestConfigWithJWTSecretResponse struct {
 	MaxRows   int     `json:"max_rows"`
 }
 
+// ProjectAvailableRestoreVersion defines model for ProjectAvailableRestoreVersion.
+type ProjectAvailableRestoreVersion struct {
+	PostgresEngine ProjectAvailableRestoreVersionPostgresEngine `json:"postgres_engine"`
+	ReleaseChannel ProjectAvailableRestoreVersionReleaseChannel `json:"release_channel"`
+	Version        string                                       `json:"version"`
+}
+
+// ProjectAvailableRestoreVersionPostgresEngine defines model for ProjectAvailableRestoreVersion.PostgresEngine.
+type ProjectAvailableRestoreVersionPostgresEngine string
+
+// ProjectAvailableRestoreVersionReleaseChannel defines model for ProjectAvailableRestoreVersion.ReleaseChannel.
+type ProjectAvailableRestoreVersionReleaseChannel string
+
 // ProjectUpgradeEligibilityResponse defines model for ProjectUpgradeEligibilityResponse.
 type ProjectUpgradeEligibilityResponse struct {
-	CurrentAppVersion         string           `json:"current_app_version"`
-	DurationEstimateHours     float32          `json:"duration_estimate_hours"`
-	Eligible                  bool             `json:"eligible"`
-	ExtensionDependentObjects []string         `json:"extension_dependent_objects"`
-	LatestAppVersion          string           `json:"latest_app_version"`
-	LegacyAuthCustomRoles     []string         `json:"legacy_auth_custom_roles"`
-	PotentialBreakingChanges  []string         `json:"potential_breaking_changes"`
-	TargetUpgradeVersions     []ProjectVersion `json:"target_upgrade_versions"`
+	CurrentAppVersion               string           `json:"current_app_version"`
+	CurrentAppVersionReleaseChannel ReleaseChannel   `json:"current_app_version_release_channel"`
+	DurationEstimateHours           int              `json:"duration_estimate_hours"`
+	Eligible                        bool             `json:"eligible"`
+	ExtensionDependentObjects       []string         `json:"extension_dependent_objects"`
+	LatestAppVersion                string           `json:"latest_app_version"`
+	LegacyAuthCustomRoles           []string         `json:"legacy_auth_custom_roles"`
+	PotentialBreakingChanges        []string         `json:"potential_breaking_changes"`
+	TargetUpgradeVersions           []ProjectVersion `json:"target_upgrade_versions"`
 }
 
 // ProjectUpgradeInitiateResponse defines model for ProjectUpgradeInitiateResponse.
@@ -914,8 +1131,11 @@ type ProjectUpgradeInitiateResponse struct {
 
 // ProjectVersion defines model for ProjectVersion.
 type ProjectVersion struct {
-	AppVersion      string  `json:"app_version"`
-	PostgresVersion float32 `json:"postgres_version"`
+	AppVersion string `json:"app_version"`
+
+	// PostgresVersion Postgres engine version. If not provided, the latest version will be used.
+	PostgresVersion PostgresEngine `json:"postgres_version"`
+	ReleaseChannel  ReleaseChannel `json:"release_channel"`
 }
 
 // Provider defines model for Provider.
@@ -936,10 +1156,11 @@ type ReadOnlyStatusResponse struct {
 
 // RealtimeHealthResponse defines model for RealtimeHealthResponse.
 type RealtimeHealthResponse struct {
-	ConnectedCluster float32 `json:"connected_cluster"`
-	DbConnected      bool    `json:"db_connected"`
-	Healthy          bool    `json:"healthy"`
+	ConnectedCluster int `json:"connected_cluster"`
 }
+
+// ReleaseChannel defines model for ReleaseChannel.
+type ReleaseChannel string
 
 // RemoveNetworkBanRequest defines model for RemoveNetworkBanRequest.
 type RemoveNetworkBanRequest struct {
@@ -950,6 +1171,21 @@ type RemoveNetworkBanRequest struct {
 type RemoveReadReplicaBody struct {
 	DatabaseIdentifier string `json:"database_identifier"`
 }
+
+// RestoreProjectBodyDto defines model for RestoreProjectBodyDto.
+type RestoreProjectBodyDto struct {
+	// PostgresEngine Postgres engine version. If not provided, the latest version from the given release channel will be used.
+	PostgresEngine *RestoreProjectBodyDtoPostgresEngine `json:"postgres_engine,omitempty"`
+
+	// ReleaseChannel Release channel version. If not provided, GeneralAvailability will be used.
+	ReleaseChannel *RestoreProjectBodyDtoReleaseChannel `json:"release_channel,omitempty"`
+}
+
+// RestoreProjectBodyDtoPostgresEngine Postgres engine version. If not provided, the latest version from the given release channel will be used.
+type RestoreProjectBodyDtoPostgresEngine string
+
+// RestoreProjectBodyDtoReleaseChannel Release channel version. If not provided, GeneralAvailability will be used.
+type RestoreProjectBodyDtoReleaseChannel string
 
 // SamlDescriptor defines model for SamlDescriptor.
 type SamlDescriptor struct {
@@ -984,12 +1220,13 @@ type SnippetContent struct {
 
 // SnippetList defines model for SnippetList.
 type SnippetList struct {
-	Data []SnippetMeta `json:"data"`
+	Cursor *string       `json:"cursor,omitempty"`
+	Data   []SnippetMeta `json:"data"`
 }
 
 // SnippetMeta defines model for SnippetMeta.
 type SnippetMeta struct {
-	Description *string               `json:"description,omitempty"`
+	Description *string               `json:"description"`
 	Id          string                `json:"id"`
 	InsertedAt  string                `json:"inserted_at"`
 	Name        string                `json:"name"`
@@ -1009,14 +1246,14 @@ type SnippetMetaVisibility string
 
 // SnippetProject defines model for SnippetProject.
 type SnippetProject struct {
-	Id   float32 `json:"id"`
-	Name string  `json:"name"`
+	Id   int64  `json:"id"`
+	Name string `json:"name"`
 }
 
 // SnippetResponse defines model for SnippetResponse.
 type SnippetResponse struct {
 	Content     SnippetContent            `json:"content"`
-	Description *string                   `json:"description,omitempty"`
+	Description *string                   `json:"description"`
 	Id          string                    `json:"id"`
 	InsertedAt  string                    `json:"inserted_at"`
 	Name        string                    `json:"name"`
@@ -1036,8 +1273,8 @@ type SnippetResponseVisibility string
 
 // SnippetUser defines model for SnippetUser.
 type SnippetUser struct {
-	Id       float32 `json:"id"`
-	Username string  `json:"username"`
+	Id       int64  `json:"id"`
+	Username string `json:"username"`
 }
 
 // SslEnforcementRequest defines model for SslEnforcementRequest.
@@ -1063,6 +1300,28 @@ type SslValidation struct {
 	ValidationRecords []ValidationRecord `json:"validation_records"`
 }
 
+// StorageConfigResponse defines model for StorageConfigResponse.
+type StorageConfigResponse struct {
+	Features      StorageFeatures `json:"features"`
+	FileSizeLimit int64           `json:"fileSizeLimit"`
+}
+
+// StorageFeatureImageTransformation defines model for StorageFeatureImageTransformation.
+type StorageFeatureImageTransformation struct {
+	Enabled bool `json:"enabled"`
+}
+
+// StorageFeatureS3Protocol defines model for StorageFeatureS3Protocol.
+type StorageFeatureS3Protocol struct {
+	Enabled bool `json:"enabled"`
+}
+
+// StorageFeatures defines model for StorageFeatures.
+type StorageFeatures struct {
+	ImageTransformation StorageFeatureImageTransformation `json:"imageTransformation"`
+	S3Protocol          StorageFeatureS3Protocol          `json:"s3Protocol"`
+}
+
 // SubdomainAvailabilityResponse defines model for SubdomainAvailabilityResponse.
 type SubdomainAvailabilityResponse struct {
 	Available bool `json:"available"`
@@ -1074,12 +1333,12 @@ type SupavisorConfigResponse struct {
 	DatabaseType     SupavisorConfigResponseDatabaseType `json:"database_type"`
 	DbHost           string                              `json:"db_host"`
 	DbName           string                              `json:"db_name"`
-	DbPort           float32                             `json:"db_port"`
+	DbPort           int                                 `json:"db_port"`
 	DbUser           string                              `json:"db_user"`
-	DefaultPoolSize  *float32                            `json:"default_pool_size"`
+	DefaultPoolSize  *int                                `json:"default_pool_size"`
 	Identifier       string                              `json:"identifier"`
 	IsUsingScramAuth bool                                `json:"is_using_scram_auth"`
-	MaxClientConn    *float32                            `json:"max_client_conn"`
+	MaxClientConn    *int                                `json:"max_client_conn"`
 	PoolMode         SupavisorConfigResponsePoolMode     `json:"pool_mode"`
 }
 
@@ -1107,10 +1366,16 @@ type TypescriptResponse struct {
 	Types string `json:"types"`
 }
 
+// UpdateApiKeyBody defines model for UpdateApiKeyBody.
+type UpdateApiKeyBody struct {
+	Description       *string                  `json:"description"`
+	SecretJwtTemplate *ApiKeySecretJWTTemplate `json:"secret_jwt_template"`
+}
+
 // UpdateAuthConfigBody defines model for UpdateAuthConfigBody.
 type UpdateAuthConfigBody struct {
-	ApiMaxRequestDuration                         *float32                                        `json:"api_max_request_duration,omitempty"`
-	DbMaxPoolSize                                 *float32                                        `json:"db_max_pool_size,omitempty"`
+	ApiMaxRequestDuration                         *int                                            `json:"api_max_request_duration,omitempty"`
+	DbMaxPoolSize                                 *int                                            `json:"db_max_pool_size,omitempty"`
 	DisableSignup                                 *bool                                           `json:"disable_signup,omitempty"`
 	ExternalAnonymousUsersEnabled                 *bool                                           `json:"external_anonymous_users_enabled,omitempty"`
 	ExternalAppleAdditionalClientIds              *string                                         `json:"external_apple_additional_client_ids,omitempty"`
@@ -1197,11 +1462,11 @@ type UpdateAuthConfigBody struct {
 	HookSendSmsEnabled                            *bool                                           `json:"hook_send_sms_enabled,omitempty"`
 	HookSendSmsSecrets                            *string                                         `json:"hook_send_sms_secrets,omitempty"`
 	HookSendSmsUri                                *string                                         `json:"hook_send_sms_uri,omitempty"`
-	JwtExp                                        *float32                                        `json:"jwt_exp,omitempty"`
+	JwtExp                                        *int                                            `json:"jwt_exp,omitempty"`
 	MailerAllowUnverifiedEmailSignIns             *bool                                           `json:"mailer_allow_unverified_email_sign_ins,omitempty"`
 	MailerAutoconfirm                             *bool                                           `json:"mailer_autoconfirm,omitempty"`
-	MailerOtpExp                                  *float32                                        `json:"mailer_otp_exp,omitempty"`
-	MailerOtpLength                               *float32                                        `json:"mailer_otp_length,omitempty"`
+	MailerOtpExp                                  *int                                            `json:"mailer_otp_exp,omitempty"`
+	MailerOtpLength                               *int                                            `json:"mailer_otp_length,omitempty"`
 	MailerSecureEmailChangeEnabled                *bool                                           `json:"mailer_secure_email_change_enabled,omitempty"`
 	MailerSubjectsConfirmation                    *string                                         `json:"mailer_subjects_confirmation,omitempty"`
 	MailerSubjectsEmailChange                     *string                                         `json:"mailer_subjects_email_change,omitempty"`
@@ -1215,23 +1480,25 @@ type UpdateAuthConfigBody struct {
 	MailerTemplatesMagicLinkContent               *string                                         `json:"mailer_templates_magic_link_content,omitempty"`
 	MailerTemplatesReauthenticationContent        *string                                         `json:"mailer_templates_reauthentication_content,omitempty"`
 	MailerTemplatesRecoveryContent                *string                                         `json:"mailer_templates_recovery_content,omitempty"`
-	MfaMaxEnrolledFactors                         *float32                                        `json:"mfa_max_enrolled_factors,omitempty"`
+	MfaMaxEnrolledFactors                         *int                                            `json:"mfa_max_enrolled_factors,omitempty"`
 	MfaPhoneEnrollEnabled                         *bool                                           `json:"mfa_phone_enroll_enabled,omitempty"`
-	MfaPhoneMaxFrequency                          *float32                                        `json:"mfa_phone_max_frequency,omitempty"`
-	MfaPhoneOtpLength                             *float32                                        `json:"mfa_phone_otp_length,omitempty"`
+	MfaPhoneMaxFrequency                          *int                                            `json:"mfa_phone_max_frequency,omitempty"`
+	MfaPhoneOtpLength                             *int                                            `json:"mfa_phone_otp_length,omitempty"`
 	MfaPhoneTemplate                              *string                                         `json:"mfa_phone_template,omitempty"`
 	MfaPhoneVerifyEnabled                         *bool                                           `json:"mfa_phone_verify_enabled,omitempty"`
 	MfaTotpEnrollEnabled                          *bool                                           `json:"mfa_totp_enroll_enabled,omitempty"`
 	MfaTotpVerifyEnabled                          *bool                                           `json:"mfa_totp_verify_enabled,omitempty"`
+	MfaWebAuthnEnrollEnabled                      *bool                                           `json:"mfa_web_authn_enroll_enabled,omitempty"`
+	MfaWebAuthnVerifyEnabled                      *bool                                           `json:"mfa_web_authn_verify_enabled,omitempty"`
 	PasswordHibpEnabled                           *bool                                           `json:"password_hibp_enabled,omitempty"`
-	PasswordMinLength                             *float32                                        `json:"password_min_length,omitempty"`
+	PasswordMinLength                             *int                                            `json:"password_min_length,omitempty"`
 	PasswordRequiredCharacters                    *UpdateAuthConfigBodyPasswordRequiredCharacters `json:"password_required_characters,omitempty"`
-	RateLimitAnonymousUsers                       *float32                                        `json:"rate_limit_anonymous_users,omitempty"`
-	RateLimitEmailSent                            *float32                                        `json:"rate_limit_email_sent,omitempty"`
-	RateLimitOtp                                  *float32                                        `json:"rate_limit_otp,omitempty"`
-	RateLimitSmsSent                              *float32                                        `json:"rate_limit_sms_sent,omitempty"`
-	RateLimitTokenRefresh                         *float32                                        `json:"rate_limit_token_refresh,omitempty"`
-	RateLimitVerify                               *float32                                        `json:"rate_limit_verify,omitempty"`
+	RateLimitAnonymousUsers                       *int                                            `json:"rate_limit_anonymous_users,omitempty"`
+	RateLimitEmailSent                            *int                                            `json:"rate_limit_email_sent,omitempty"`
+	RateLimitOtp                                  *int                                            `json:"rate_limit_otp,omitempty"`
+	RateLimitSmsSent                              *int                                            `json:"rate_limit_sms_sent,omitempty"`
+	RateLimitTokenRefresh                         *int                                            `json:"rate_limit_token_refresh,omitempty"`
+	RateLimitVerify                               *int                                            `json:"rate_limit_verify,omitempty"`
 	RefreshTokenRotationEnabled                   *bool                                           `json:"refresh_token_rotation_enabled,omitempty"`
 	SamlEnabled                                   *bool                                           `json:"saml_enabled,omitempty"`
 	SamlExternalUrl                               *string                                         `json:"saml_external_url,omitempty"`
@@ -1239,19 +1506,19 @@ type UpdateAuthConfigBody struct {
 	SecurityCaptchaProvider                       *string                                         `json:"security_captcha_provider,omitempty"`
 	SecurityCaptchaSecret                         *string                                         `json:"security_captcha_secret,omitempty"`
 	SecurityManualLinkingEnabled                  *bool                                           `json:"security_manual_linking_enabled,omitempty"`
-	SecurityRefreshTokenReuseInterval             *float32                                        `json:"security_refresh_token_reuse_interval,omitempty"`
+	SecurityRefreshTokenReuseInterval             *int                                            `json:"security_refresh_token_reuse_interval,omitempty"`
 	SecurityUpdatePasswordRequireReauthentication *bool                                           `json:"security_update_password_require_reauthentication,omitempty"`
-	SessionsInactivityTimeout                     *float32                                        `json:"sessions_inactivity_timeout,omitempty"`
+	SessionsInactivityTimeout                     *int                                            `json:"sessions_inactivity_timeout,omitempty"`
 	SessionsSinglePerUser                         *bool                                           `json:"sessions_single_per_user,omitempty"`
 	SessionsTags                                  *string                                         `json:"sessions_tags,omitempty"`
-	SessionsTimebox                               *float32                                        `json:"sessions_timebox,omitempty"`
+	SessionsTimebox                               *int                                            `json:"sessions_timebox,omitempty"`
 	SiteUrl                                       *string                                         `json:"site_url,omitempty"`
 	SmsAutoconfirm                                *bool                                           `json:"sms_autoconfirm,omitempty"`
-	SmsMaxFrequency                               *float32                                        `json:"sms_max_frequency,omitempty"`
+	SmsMaxFrequency                               *int                                            `json:"sms_max_frequency,omitempty"`
 	SmsMessagebirdAccessKey                       *string                                         `json:"sms_messagebird_access_key,omitempty"`
 	SmsMessagebirdOriginator                      *string                                         `json:"sms_messagebird_originator,omitempty"`
-	SmsOtpExp                                     *float32                                        `json:"sms_otp_exp,omitempty"`
-	SmsOtpLength                                  *float32                                        `json:"sms_otp_length,omitempty"`
+	SmsOtpExp                                     *int                                            `json:"sms_otp_exp,omitempty"`
+	SmsOtpLength                                  *int                                            `json:"sms_otp_length,omitempty"`
 	SmsProvider                                   *string                                         `json:"sms_provider,omitempty"`
 	SmsTemplate                                   *string                                         `json:"sms_template,omitempty"`
 	SmsTestOtp                                    *string                                         `json:"sms_test_otp,omitempty"`
@@ -1270,7 +1537,7 @@ type UpdateAuthConfigBody struct {
 	SmsVonageFrom                                 *string                                         `json:"sms_vonage_from,omitempty"`
 	SmtpAdminEmail                                *string                                         `json:"smtp_admin_email,omitempty"`
 	SmtpHost                                      *string                                         `json:"smtp_host,omitempty"`
-	SmtpMaxFrequency                              *float32                                        `json:"smtp_max_frequency,omitempty"`
+	SmtpMaxFrequency                              *int                                            `json:"smtp_max_frequency,omitempty"`
 	SmtpPass                                      *string                                         `json:"smtp_pass,omitempty"`
 	SmtpPort                                      *string                                         `json:"smtp_port,omitempty"`
 	SmtpSenderName                                *string                                         `json:"smtp_sender_name,omitempty"`
@@ -1283,9 +1550,12 @@ type UpdateAuthConfigBodyPasswordRequiredCharacters string
 
 // UpdateBranchBody defines model for UpdateBranchBody.
 type UpdateBranchBody struct {
-	BranchName  *string                 `json:"branch_name,omitempty"`
-	GitBranch   *string                 `json:"git_branch,omitempty"`
-	Persistent  *bool                   `json:"persistent,omitempty"`
+	BranchName *string `json:"branch_name,omitempty"`
+	GitBranch  *string `json:"git_branch,omitempty"`
+	Persistent *bool   `json:"persistent,omitempty"`
+
+	// ResetOnPush This field is deprecated and will be ignored. Use v1-reset-a-branch endpoint directly instead.
+	// Deprecated:
 	ResetOnPush *bool                   `json:"reset_on_push,omitempty"`
 	Status      *UpdateBranchBodyStatus `json:"status,omitempty"`
 }
@@ -1316,18 +1586,28 @@ type UpdatePgsodiumConfigBody struct {
 // UpdatePostgresConfigBody defines model for UpdatePostgresConfigBody.
 type UpdatePostgresConfigBody struct {
 	EffectiveCacheSize            *string                                         `json:"effective_cache_size,omitempty"`
+	LogicalDecodingWorkMem        *string                                         `json:"logical_decoding_work_mem,omitempty"`
 	MaintenanceWorkMem            *string                                         `json:"maintenance_work_mem,omitempty"`
 	MaxConnections                *int                                            `json:"max_connections,omitempty"`
 	MaxLocksPerTransaction        *int                                            `json:"max_locks_per_transaction,omitempty"`
 	MaxParallelMaintenanceWorkers *int                                            `json:"max_parallel_maintenance_workers,omitempty"`
 	MaxParallelWorkers            *int                                            `json:"max_parallel_workers,omitempty"`
 	MaxParallelWorkersPerGather   *int                                            `json:"max_parallel_workers_per_gather,omitempty"`
+	MaxReplicationSlots           *int                                            `json:"max_replication_slots,omitempty"`
+	MaxSlotWalKeepSize            *string                                         `json:"max_slot_wal_keep_size,omitempty"`
 	MaxStandbyArchiveDelay        *string                                         `json:"max_standby_archive_delay,omitempty"`
 	MaxStandbyStreamingDelay      *string                                         `json:"max_standby_streaming_delay,omitempty"`
+	MaxWalSenders                 *int                                            `json:"max_wal_senders,omitempty"`
+	MaxWalSize                    *string                                         `json:"max_wal_size,omitempty"`
 	MaxWorkerProcesses            *int                                            `json:"max_worker_processes,omitempty"`
+	RestartDatabase               *bool                                           `json:"restart_database,omitempty"`
 	SessionReplicationRole        *UpdatePostgresConfigBodySessionReplicationRole `json:"session_replication_role,omitempty"`
 	SharedBuffers                 *string                                         `json:"shared_buffers,omitempty"`
 	StatementTimeout              *string                                         `json:"statement_timeout,omitempty"`
+	TrackActivityQuerySize        *string                                         `json:"track_activity_query_size,omitempty"`
+	TrackCommitTimestamp          *bool                                           `json:"track_commit_timestamp,omitempty"`
+	WalKeepSize                   *string                                         `json:"wal_keep_size,omitempty"`
+	WalSenderTimeout              *string                                         `json:"wal_sender_timeout,omitempty"`
 	WorkMem                       *string                                         `json:"work_mem,omitempty"`
 }
 
@@ -1359,6 +1639,12 @@ type UpdateProviderResponse struct {
 	UpdatedAt *string         `json:"updated_at,omitempty"`
 }
 
+// UpdateStorageConfigBody defines model for UpdateStorageConfigBody.
+type UpdateStorageConfigBody struct {
+	Features      *StorageFeatures `json:"features,omitempty"`
+	FileSizeLimit *int64           `json:"fileSizeLimit,omitempty"`
+}
+
 // UpdateSupavisorConfigBody defines model for UpdateSupavisorConfigBody.
 type UpdateSupavisorConfigBody struct {
 	DefaultPoolSize *int `json:"default_pool_size"`
@@ -1373,7 +1659,7 @@ type UpdateSupavisorConfigBodyPoolMode string
 
 // UpdateSupavisorConfigResponse defines model for UpdateSupavisorConfigResponse.
 type UpdateSupavisorConfigResponse struct {
-	DefaultPoolSize *float32                              `json:"default_pool_size"`
+	DefaultPoolSize *int                                  `json:"default_pool_size"`
 	PoolMode        UpdateSupavisorConfigResponsePoolMode `json:"pool_mode"`
 }
 
@@ -1382,7 +1668,36 @@ type UpdateSupavisorConfigResponsePoolMode string
 
 // UpgradeDatabaseBody defines model for UpgradeDatabaseBody.
 type UpgradeDatabaseBody struct {
-	TargetVersion float32 `json:"target_version"`
+	ReleaseChannel ReleaseChannel `json:"release_channel"`
+	TargetVersion  string         `json:"target_version"`
+}
+
+// V1AnalyticsResponse defines model for V1AnalyticsResponse.
+type V1AnalyticsResponse struct {
+	Error  *V1AnalyticsResponse_Error `json:"error,omitempty"`
+	Result *[]map[string]interface{}  `json:"result,omitempty"`
+}
+
+// V1AnalyticsResponseError0 defines model for .
+type V1AnalyticsResponseError0 struct {
+	Code   *float32 `json:"code,omitempty"`
+	Errors *[]struct {
+		Domain       *string `json:"domain,omitempty"`
+		Location     *string `json:"location,omitempty"`
+		LocationType *string `json:"locationType,omitempty"`
+		Message      *string `json:"message,omitempty"`
+		Reason       *string `json:"reason,omitempty"`
+	} `json:"errors,omitempty"`
+	Message *string `json:"message,omitempty"`
+	Status  *string `json:"status,omitempty"`
+}
+
+// V1AnalyticsResponseError1 defines model for .
+type V1AnalyticsResponseError1 = string
+
+// V1AnalyticsResponse_Error defines model for V1AnalyticsResponse.Error.
+type V1AnalyticsResponse_Error struct {
+	union json.RawMessage
 }
 
 // V1Backup defines model for V1Backup.
@@ -1406,23 +1721,24 @@ type V1BackupsResponse struct {
 
 // V1CreateFunctionBody defines model for V1CreateFunctionBody.
 type V1CreateFunctionBody struct {
-	Body      string `json:"body"`
-	Name      string `json:"name"`
-	Slug      string `json:"slug"`
-	VerifyJwt *bool  `json:"verify_jwt,omitempty"`
+	Body              string   `json:"body"`
+	ComputeMultiplier *float32 `json:"compute_multiplier,omitempty"`
+	Name              string   `json:"name"`
+	Slug              string   `json:"slug"`
+	VerifyJwt         *bool    `json:"verify_jwt,omitempty"`
 }
 
-// V1CreateProjectBody defines model for V1CreateProjectBody.
-type V1CreateProjectBody struct {
+// V1CreateProjectBodyDto defines model for V1CreateProjectBodyDto.
+type V1CreateProjectBodyDto struct {
 	// DbPass Database password
-	DbPass              string               `json:"db_pass"`
-	DesiredInstanceSize *DesiredInstanceSize `json:"desired_instance_size,omitempty"`
+	DbPass              string                                     `json:"db_pass"`
+	DesiredInstanceSize *V1CreateProjectBodyDtoDesiredInstanceSize `json:"desired_instance_size,omitempty"`
 
 	// KpsEnabled This field is deprecated and is ignored in this request
 	// Deprecated:
 	KpsEnabled *bool `json:"kps_enabled,omitempty"`
 
-	// Name Name of your project, should not contain dots
+	// Name Name of your project
 	Name string `json:"name"`
 
 	// OrganizationId Slug of your organization
@@ -1430,25 +1746,46 @@ type V1CreateProjectBody struct {
 
 	// Plan Subscription Plan is now set on organization level and is ignored in this request
 	// Deprecated:
-	Plan *V1CreateProjectBodyPlan `json:"plan,omitempty"`
+	Plan *V1CreateProjectBodyDtoPlan `json:"plan,omitempty"`
+
+	// PostgresEngine Postgres engine version. If not provided, the latest version will be used.
+	PostgresEngine *V1CreateProjectBodyDtoPostgresEngine `json:"postgres_engine,omitempty"`
 
 	// Region Region you want your server to reside in
-	Region V1CreateProjectBodyRegion `json:"region"`
+	Region V1CreateProjectBodyDtoRegion `json:"region"`
+
+	// ReleaseChannel Release channel. If not provided, GA will be used.
+	ReleaseChannel *V1CreateProjectBodyDtoReleaseChannel `json:"release_channel,omitempty"`
 
 	// TemplateUrl Template URL used to create the project from the CLI.
 	TemplateUrl *string `json:"template_url,omitempty"`
 }
 
-// V1CreateProjectBodyPlan Subscription Plan is now set on organization level and is ignored in this request
-type V1CreateProjectBodyPlan string
+// V1CreateProjectBodyDtoDesiredInstanceSize defines model for V1CreateProjectBodyDto.DesiredInstanceSize.
+type V1CreateProjectBodyDtoDesiredInstanceSize string
 
-// V1CreateProjectBodyRegion Region you want your server to reside in
-type V1CreateProjectBodyRegion string
+// V1CreateProjectBodyDtoPlan Subscription Plan is now set on organization level and is ignored in this request
+type V1CreateProjectBodyDtoPlan string
+
+// V1CreateProjectBodyDtoPostgresEngine Postgres engine version. If not provided, the latest version will be used.
+type V1CreateProjectBodyDtoPostgresEngine string
+
+// V1CreateProjectBodyDtoRegion Region you want your server to reside in
+type V1CreateProjectBodyDtoRegion string
+
+// V1CreateProjectBodyDtoReleaseChannel Release channel. If not provided, GA will be used.
+type V1CreateProjectBodyDtoReleaseChannel string
 
 // V1DatabaseResponse defines model for V1DatabaseResponse.
 type V1DatabaseResponse struct {
 	// Host Database host
 	Host string `json:"host"`
+
+	// PostgresEngine Database engine
+	PostgresEngine string `json:"postgres_engine"`
+
+	// ReleaseChannel Release channel
+	ReleaseChannel string `json:"release_channel"`
 
 	// Version Database version
 	Version string `json:"version"`
@@ -1465,10 +1802,11 @@ type V1OrganizationMemberResponse struct {
 
 // V1OrganizationSlugResponse defines model for V1OrganizationSlugResponse.
 type V1OrganizationSlugResponse struct {
-	Id        string                                `json:"id"`
-	Name      string                                `json:"name"`
-	OptInTags []V1OrganizationSlugResponseOptInTags `json:"opt_in_tags"`
-	Plan      *BillingPlanId                        `json:"plan,omitempty"`
+	AllowedReleaseChannels []ReleaseChannel                      `json:"allowed_release_channels"`
+	Id                     string                                `json:"id"`
+	Name                   string                                `json:"name"`
+	OptInTags              []V1OrganizationSlugResponseOptInTags `json:"opt_in_tags"`
+	Plan                   *BillingPlanId                        `json:"plan,omitempty"`
 }
 
 // V1OrganizationSlugResponseOptInTags defines model for V1OrganizationSlugResponse.OptInTags.
@@ -1488,8 +1826,8 @@ type V1PgbouncerConfigResponsePoolMode string
 
 // V1PhysicalBackup defines model for V1PhysicalBackup.
 type V1PhysicalBackup struct {
-	EarliestPhysicalBackupDateUnix *float32 `json:"earliest_physical_backup_date_unix,omitempty"`
-	LatestPhysicalBackupDateUnix   *float32 `json:"latest_physical_backup_date_unix,omitempty"`
+	EarliestPhysicalBackupDateUnix *int64 `json:"earliest_physical_backup_date_unix,omitempty"`
+	LatestPhysicalBackupDateUnix   *int64 `json:"latest_physical_backup_date_unix,omitempty"`
 }
 
 // V1PostgrestConfigResponse defines model for V1PostgrestConfigResponse.
@@ -1504,16 +1842,15 @@ type V1PostgrestConfigResponse struct {
 
 // V1ProjectRefResponse defines model for V1ProjectRefResponse.
 type V1ProjectRefResponse struct {
-	Id   float32 `json:"id"`
-	Name string  `json:"name"`
-	Ref  string  `json:"ref"`
+	Id   int64  `json:"id"`
+	Name string `json:"name"`
+	Ref  string `json:"ref"`
 }
 
 // V1ProjectResponse defines model for V1ProjectResponse.
 type V1ProjectResponse struct {
 	// CreatedAt Creation timestamp
-	CreatedAt string              `json:"created_at"`
-	Database  *V1DatabaseResponse `json:"database,omitempty"`
+	CreatedAt string `json:"created_at"`
 
 	// Id Id of your project
 	Id string `json:"id"`
@@ -1532,9 +1869,32 @@ type V1ProjectResponse struct {
 // V1ProjectResponseStatus defines model for V1ProjectResponse.Status.
 type V1ProjectResponseStatus string
 
+// V1ProjectWithDatabaseResponse defines model for V1ProjectWithDatabaseResponse.
+type V1ProjectWithDatabaseResponse struct {
+	// CreatedAt Creation timestamp
+	CreatedAt string             `json:"created_at"`
+	Database  V1DatabaseResponse `json:"database"`
+
+	// Id Id of your project
+	Id string `json:"id"`
+
+	// Name Name of your project
+	Name string `json:"name"`
+
+	// OrganizationId Slug of your organization
+	OrganizationId string `json:"organization_id"`
+
+	// Region Region of your project
+	Region string                              `json:"region"`
+	Status V1ProjectWithDatabaseResponseStatus `json:"status"`
+}
+
+// V1ProjectWithDatabaseResponseStatus defines model for V1ProjectWithDatabaseResponse.Status.
+type V1ProjectWithDatabaseResponseStatus string
+
 // V1RestorePitrBody defines model for V1RestorePitrBody.
 type V1RestorePitrBody struct {
-	RecoveryTimeTargetUnix float32 `json:"recovery_time_target_unix"`
+	RecoveryTimeTargetUnix int64 `json:"recovery_time_target_unix"`
 }
 
 // V1RunQueryBody defines model for V1RunQueryBody.
@@ -1574,9 +1934,10 @@ type V1StorageBucketResponse struct {
 
 // V1UpdateFunctionBody defines model for V1UpdateFunctionBody.
 type V1UpdateFunctionBody struct {
-	Body      *string `json:"body,omitempty"`
-	Name      *string `json:"name,omitempty"`
-	VerifyJwt *bool   `json:"verify_jwt,omitempty"`
+	Body              *string  `json:"body,omitempty"`
+	ComputeMultiplier *float32 `json:"compute_multiplier,omitempty"`
+	Name              *string  `json:"name,omitempty"`
+	VerifyJwt         *bool    `json:"verify_jwt,omitempty"`
 }
 
 // ValidationError defines model for ValidationError.
@@ -1622,24 +1983,58 @@ type V1AuthorizeUserParamsResponseType string
 // V1AuthorizeUserParamsCodeChallengeMethod defines parameters for V1AuthorizeUser.
 type V1AuthorizeUserParamsCodeChallengeMethod string
 
-// CreateFunctionParams defines parameters for CreateFunction.
-type CreateFunctionParams struct {
-	Slug           *string `form:"slug,omitempty" json:"slug,omitempty"`
-	Name           *string `form:"name,omitempty" json:"name,omitempty"`
-	VerifyJwt      *bool   `form:"verify_jwt,omitempty" json:"verify_jwt,omitempty"`
-	ImportMap      *bool   `form:"import_map,omitempty" json:"import_map,omitempty"`
-	EntrypointPath *string `form:"entrypoint_path,omitempty" json:"entrypoint_path,omitempty"`
-	ImportMapPath  *string `form:"import_map_path,omitempty" json:"import_map_path,omitempty"`
+// GetLogsParams defines parameters for GetLogs.
+type GetLogsParams struct {
+	IsoTimestampEnd   *string `form:"iso_timestamp_end,omitempty" json:"iso_timestamp_end,omitempty"`
+	IsoTimestampStart *string `form:"iso_timestamp_start,omitempty" json:"iso_timestamp_start,omitempty"`
+	Sql               *string `form:"sql,omitempty" json:"sql,omitempty"`
+}
+
+// V1GetProjectApiKeysParams defines parameters for V1GetProjectApiKeys.
+type V1GetProjectApiKeysParams struct {
+	Reveal bool `form:"reveal" json:"reveal"`
+}
+
+// CreateApiKeyParams defines parameters for CreateApiKey.
+type CreateApiKeyParams struct {
+	Reveal bool `form:"reveal" json:"reveal"`
+}
+
+// DeleteApiKeyParams defines parameters for DeleteApiKey.
+type DeleteApiKeyParams struct {
+	Reveal bool `form:"reveal" json:"reveal"`
+}
+
+// GetApiKeyParams defines parameters for GetApiKey.
+type GetApiKeyParams struct {
+	Reveal bool `form:"reveal" json:"reveal"`
+}
+
+// UpdateApiKeyParams defines parameters for UpdateApiKey.
+type UpdateApiKeyParams struct {
+	Reveal bool `form:"reveal" json:"reveal"`
+}
+
+// V1CreateAFunctionParams defines parameters for V1CreateAFunction.
+type V1CreateAFunctionParams struct {
+	Slug              *string  `form:"slug,omitempty" json:"slug,omitempty"`
+	Name              *string  `form:"name,omitempty" json:"name,omitempty"`
+	VerifyJwt         *bool    `form:"verify_jwt,omitempty" json:"verify_jwt,omitempty"`
+	ImportMap         *bool    `form:"import_map,omitempty" json:"import_map,omitempty"`
+	EntrypointPath    *string  `form:"entrypoint_path,omitempty" json:"entrypoint_path,omitempty"`
+	ImportMapPath     *string  `form:"import_map_path,omitempty" json:"import_map_path,omitempty"`
+	ComputeMultiplier *float32 `form:"compute_multiplier,omitempty" json:"compute_multiplier,omitempty"`
 }
 
 // V1UpdateAFunctionParams defines parameters for V1UpdateAFunction.
 type V1UpdateAFunctionParams struct {
-	Slug           *string `form:"slug,omitempty" json:"slug,omitempty"`
-	Name           *string `form:"name,omitempty" json:"name,omitempty"`
-	VerifyJwt      *bool   `form:"verify_jwt,omitempty" json:"verify_jwt,omitempty"`
-	ImportMap      *bool   `form:"import_map,omitempty" json:"import_map,omitempty"`
-	EntrypointPath *string `form:"entrypoint_path,omitempty" json:"entrypoint_path,omitempty"`
-	ImportMapPath  *string `form:"import_map_path,omitempty" json:"import_map_path,omitempty"`
+	Slug              *string  `form:"slug,omitempty" json:"slug,omitempty"`
+	Name              *string  `form:"name,omitempty" json:"name,omitempty"`
+	VerifyJwt         *bool    `form:"verify_jwt,omitempty" json:"verify_jwt,omitempty"`
+	ImportMap         *bool    `form:"import_map,omitempty" json:"import_map,omitempty"`
+	EntrypointPath    *string  `form:"entrypoint_path,omitempty" json:"entrypoint_path,omitempty"`
+	ImportMapPath     *string  `form:"import_map_path,omitempty" json:"import_map_path,omitempty"`
+	ComputeMultiplier *float32 `form:"compute_multiplier,omitempty" json:"compute_multiplier,omitempty"`
 }
 
 // V1GetServicesHealthParams defines parameters for V1GetServicesHealth.
@@ -1662,22 +2057,46 @@ type V1GenerateTypescriptTypesParams struct {
 	IncludedSchemas *string `form:"included_schemas,omitempty" json:"included_schemas,omitempty"`
 }
 
+// V1GetPostgresUpgradeStatusParams defines parameters for V1GetPostgresUpgradeStatus.
+type V1GetPostgresUpgradeStatusParams struct {
+	TrackingId *string `form:"tracking_id,omitempty" json:"tracking_id,omitempty"`
+}
+
 // V1ListAllSnippetsParams defines parameters for V1ListAllSnippets.
 type V1ListAllSnippetsParams struct {
-	ProjectRef *string `form:"project_ref,omitempty" json:"project_ref,omitempty"`
+	Cursor     *string                           `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit      *string                           `form:"limit,omitempty" json:"limit,omitempty"`
+	SortBy     *V1ListAllSnippetsParamsSortBy    `form:"sort_by,omitempty" json:"sort_by,omitempty"`
+	SortOrder  *V1ListAllSnippetsParamsSortOrder `form:"sort_order,omitempty" json:"sort_order,omitempty"`
+	ProjectRef *string                           `form:"project_ref,omitempty" json:"project_ref,omitempty"`
 }
+
+// V1ListAllSnippetsParamsSortBy defines parameters for V1ListAllSnippets.
+type V1ListAllSnippetsParamsSortBy string
+
+// V1ListAllSnippetsParamsSortOrder defines parameters for V1ListAllSnippets.
+type V1ListAllSnippetsParamsSortOrder string
 
 // V1UpdateABranchConfigJSONRequestBody defines body for V1UpdateABranchConfig for application/json ContentType.
 type V1UpdateABranchConfigJSONRequestBody = UpdateBranchBody
+
+// V1RevokeTokenJSONRequestBody defines body for V1RevokeToken for application/json ContentType.
+type V1RevokeTokenJSONRequestBody = OAuthRevokeTokenBodyDto
 
 // V1ExchangeOauthTokenFormdataRequestBody defines body for V1ExchangeOauthToken for application/x-www-form-urlencoded ContentType.
 type V1ExchangeOauthTokenFormdataRequestBody = OAuthTokenBody
 
 // V1CreateAnOrganizationJSONRequestBody defines body for V1CreateAnOrganization for application/json ContentType.
-type V1CreateAnOrganizationJSONRequestBody = CreateOrganizationBodyV1
+type V1CreateAnOrganizationJSONRequestBody = CreateOrganizationV1Dto
 
 // V1CreateAProjectJSONRequestBody defines body for V1CreateAProject for application/json ContentType.
-type V1CreateAProjectJSONRequestBody = V1CreateProjectBody
+type V1CreateAProjectJSONRequestBody = V1CreateProjectBodyDto
+
+// CreateApiKeyJSONRequestBody defines body for CreateApiKey for application/json ContentType.
+type CreateApiKeyJSONRequestBody = CreateApiKeyBody
+
+// UpdateApiKeyJSONRequestBody defines body for UpdateApiKey for application/json ContentType.
+type UpdateApiKeyJSONRequestBody = UpdateApiKeyBody
 
 // V1CreateABranchJSONRequestBody defines body for V1CreateABranch for application/json ContentType.
 type V1CreateABranchJSONRequestBody = CreateBranchBody
@@ -1700,6 +2119,9 @@ type V1UpdateSupavisorConfigJSONRequestBody = UpdateSupavisorConfigBody
 // V1UpdatePostgresConfigJSONRequestBody defines body for V1UpdatePostgresConfig for application/json ContentType.
 type V1UpdatePostgresConfigJSONRequestBody = UpdatePostgresConfigBody
 
+// V1UpdateStorageConfigJSONRequestBody defines body for V1UpdateStorageConfig for application/json ContentType.
+type V1UpdateStorageConfigJSONRequestBody = UpdateStorageConfigBody
+
 // V1UpdateHostnameConfigJSONRequestBody defines body for V1UpdateHostnameConfig for application/json ContentType.
 type V1UpdateHostnameConfigJSONRequestBody = UpdateCustomHostnameBody
 
@@ -1709,8 +2131,8 @@ type V1RestorePitrBackupJSONRequestBody = V1RestorePitrBody
 // V1RunAQueryJSONRequestBody defines body for V1RunAQuery for application/json ContentType.
 type V1RunAQueryJSONRequestBody = V1RunQueryBody
 
-// CreateFunctionJSONRequestBody defines body for CreateFunction for application/json ContentType.
-type CreateFunctionJSONRequestBody = V1CreateFunctionBody
+// V1CreateAFunctionJSONRequestBody defines body for V1CreateAFunction for application/json ContentType.
+type V1CreateAFunctionJSONRequestBody = V1CreateFunctionBody
 
 // V1UpdateAFunctionJSONRequestBody defines body for V1UpdateAFunction for application/json ContentType.
 type V1UpdateAFunctionJSONRequestBody = V1UpdateFunctionBody
@@ -1732,6 +2154,9 @@ type V1RemoveAReadReplicaJSONRequestBody = RemoveReadReplicaBody
 
 // V1SetupAReadReplicaJSONRequestBody defines body for V1SetupAReadReplica for application/json ContentType.
 type V1SetupAReadReplicaJSONRequestBody = SetUpReadReplicaBody
+
+// V1RestoreAProjectJSONRequestBody defines body for V1RestoreAProject for application/json ContentType.
+type V1RestoreAProjectJSONRequestBody = RestoreProjectBodyDto
 
 // V1BulkDeleteSecretsJSONRequestBody defines body for V1BulkDeleteSecrets for application/json ContentType.
 type V1BulkDeleteSecretsJSONRequestBody = V1BulkDeleteSecretsJSONBody
@@ -1861,6 +2286,68 @@ func (t AttributeValue_Default) MarshalJSON() ([]byte, error) {
 }
 
 func (t *AttributeValue_Default) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsV1AnalyticsResponseError0 returns the union data inside the V1AnalyticsResponse_Error as a V1AnalyticsResponseError0
+func (t V1AnalyticsResponse_Error) AsV1AnalyticsResponseError0() (V1AnalyticsResponseError0, error) {
+	var body V1AnalyticsResponseError0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromV1AnalyticsResponseError0 overwrites any union data inside the V1AnalyticsResponse_Error as the provided V1AnalyticsResponseError0
+func (t *V1AnalyticsResponse_Error) FromV1AnalyticsResponseError0(v V1AnalyticsResponseError0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeV1AnalyticsResponseError0 performs a merge with any union data inside the V1AnalyticsResponse_Error, using the provided V1AnalyticsResponseError0
+func (t *V1AnalyticsResponse_Error) MergeV1AnalyticsResponseError0(v V1AnalyticsResponseError0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsV1AnalyticsResponseError1 returns the union data inside the V1AnalyticsResponse_Error as a V1AnalyticsResponseError1
+func (t V1AnalyticsResponse_Error) AsV1AnalyticsResponseError1() (V1AnalyticsResponseError1, error) {
+	var body V1AnalyticsResponseError1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromV1AnalyticsResponseError1 overwrites any union data inside the V1AnalyticsResponse_Error as the provided V1AnalyticsResponseError1
+func (t *V1AnalyticsResponse_Error) FromV1AnalyticsResponseError1(v V1AnalyticsResponseError1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeV1AnalyticsResponseError1 performs a merge with any union data inside the V1AnalyticsResponse_Error, using the provided V1AnalyticsResponseError1
+func (t *V1AnalyticsResponse_Error) MergeV1AnalyticsResponseError1(v V1AnalyticsResponseError1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t V1AnalyticsResponse_Error) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *V1AnalyticsResponse_Error) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }

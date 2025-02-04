@@ -33,12 +33,14 @@ begin
     execute format('drop table if exists %I.%I cascade', rec.relnamespace::regnamespace::name, rec.relname);
   end loop;
 
-  -- truncate tables in auth and migrations schema
+  -- truncate tables in auth, storage, webhooks, and migrations schema
   for rec in
     select *
     from pg_class c
     where
       (c.relnamespace::regnamespace::name = 'auth' and c.relname != 'schema_migrations'
+      or c.relnamespace::regnamespace::name = 'storage' and c.relname != 'migrations'
+      or c.relnamespace::regnamespace::name = 'supabase_functions' and c.relname != 'migrations'
       or c.relnamespace::regnamespace::name = 'supabase_migrations')
       and c.relkind = 'r'
   loop
@@ -73,5 +75,15 @@ begin
     from pg_policies p
   loop
     execute format('drop policy if exists %I on %I.%I cascade', rec.policyname, rec.schemaname, rec.tablename);
+  end loop;
+
+  -- publications
+  for rec in
+    select *
+    from pg_publication p
+    where
+      p.pubname not like 'supabase_realtime%' and p.pubname not like 'realtime_messages%'
+  loop
+    execute format('drop publication if exists %I', rec.pubname);
   end loop;
 end $$;

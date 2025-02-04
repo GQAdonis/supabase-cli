@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
@@ -25,6 +27,7 @@ import (
 	"github.com/supabase/cli/internal/seed/buckets"
 	"github.com/supabase/cli/internal/utils"
 	"github.com/supabase/cli/pkg/migration"
+	"github.com/supabase/cli/pkg/vault"
 )
 
 func Run(ctx context.Context, version string, config pgconn.Config, fsys afero.Fs, options ...func(*pgx.ConnConfig)) error {
@@ -54,9 +57,11 @@ func Run(ctx context.Context, version string, config pgconn.Config, fsys afero.F
 		return err
 	}
 	// Seed objects from supabase/buckets directory
-	if utils.Config.Storage.Enabled {
-		if err := start.WaitForHealthyService(ctx, 30*time.Second, utils.StorageId); err != nil {
-			return err
+	if resp, err := utils.Docker.ContainerInspect(ctx, utils.StorageId); err == nil {
+		if resp.State.Health == nil || resp.State.Health.Status != types.Healthy {
+			if err := start.WaitForHealthyService(ctx, 30*time.Second, utils.StorageId); err != nil {
+				return err
+			}
 		}
 		if err := buckets.Run(ctx, "", false, fsys); err != nil {
 			return err
@@ -97,11 +102,6 @@ func resetDatabase14(ctx context.Context, version string, fsys afero.Fs, options
 		return err
 	}
 	defer conn.Close(context.Background())
-	if utils.Config.Db.MajorVersion > 14 {
-		if err := start.SetupDatabase(ctx, conn, utils.DbId, os.Stderr, fsys); err != nil {
-			return err
-		}
-	}
 	return apply.MigrateAndSeed(ctx, version, conn, fsys)
 }
 
@@ -111,10 +111,6 @@ func resetDatabase15(ctx context.Context, version string, fsys afero.Fs, options
 	}
 	if err := utils.Docker.VolumeRemove(ctx, utils.DbId, true); err != nil {
 		return errors.Errorf("failed to remove volume: %w", err)
-	}
-	// Skip syslog if vector container is not started
-	if _, err := utils.Docker.ContainerInspect(ctx, utils.VectorId); err != nil {
-		utils.Config.Analytics.Enabled = false
 	}
 	config := start.NewContainerConfig()
 	hostConfig := start.NewHostConfig()
@@ -132,15 +128,7 @@ func resetDatabase15(ctx context.Context, version string, fsys afero.Fs, options
 	if err := start.WaitForHealthyService(ctx, start.HealthTimeout, utils.DbId); err != nil {
 		return err
 	}
-	conn, err := utils.ConnectLocalPostgres(ctx, pgconn.Config{}, options...)
-	if err != nil {
-		return err
-	}
-	defer conn.Close(context.Background())
-	if err := start.SetupDatabase(ctx, conn, utils.DbId, os.Stderr, fsys); err != nil {
-		return err
-	}
-	if err := apply.MigrateAndSeed(ctx, version, conn, fsys); err != nil {
+	if err := start.SetupLocalDatabase(ctx, version, fsys, os.Stderr, options...); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "Restarting containers...")
@@ -171,25 +159,47 @@ func recreateDatabase(ctx context.Context, options ...func(*pgx.ConnConfig)) err
 		Statements: []string{
 			"DROP DATABASE IF EXISTS postgres WITH (FORCE)",
 			"CREATE DATABASE postgres WITH OWNER postgres",
+			"DROP DATABASE IF EXISTS _supabase WITH (FORCE)",
+			"CREATE DATABASE _supabase WITH OWNER postgres",
 		},
 	}
 	return sql.ExecBatch(ctx, conn)
 }
 
+const (
+	TERMINATE_BACKENDS      = "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname IN ('postgres', '_supabase')"
+	COUNT_REPLICATION_SLOTS = "SELECT COUNT(*) FROM pg_replication_slots WHERE database IN ('postgres', '_supabase')"
+)
+
 func DisconnectClients(ctx context.Context, conn *pgx.Conn) error {
-	// Must be executed separately because running in transaction is unsupported
-	disconn := "ALTER DATABASE postgres ALLOW_CONNECTIONS false;"
-	if _, err := conn.Exec(ctx, disconn); err != nil {
+	// Must be executed separately because looping in transaction is unsupported
+	// https://dba.stackexchange.com/a/11895
+	disconn := migration.MigrationFile{
+		Statements: []string{
+			"ALTER DATABASE postgres ALLOW_CONNECTIONS false",
+			"ALTER DATABASE _supabase ALLOW_CONNECTIONS false",
+			TERMINATE_BACKENDS,
+		},
+	}
+	if err := disconn.ExecBatch(ctx, conn); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code != pgerrcode.InvalidCatalogName {
 			return errors.Errorf("failed to disconnect clients: %w", err)
 		}
 	}
-	term := fmt.Sprintf(utils.TerminateDbSqlFmt, "postgres")
-	if _, err := conn.Exec(ctx, term); err != nil {
-		return errors.Errorf("failed to terminate backend: %w", err)
+	// Wait for WAL senders to drop their replication slots
+	policy := start.NewBackoffPolicy(ctx, 10*time.Second)
+	waitForDrop := func() error {
+		var count int
+		if err := conn.QueryRow(ctx, COUNT_REPLICATION_SLOTS).Scan(&count); err != nil {
+			err = errors.Errorf("failed to count replication slots: %w", err)
+			return &backoff.PermanentError{Err: err}
+		} else if count > 0 {
+			return errors.Errorf("replication slots still active: %d", count)
+		}
+		return nil
 	}
-	return nil
+	return backoff.Retry(waitForDrop, policy)
 }
 
 func RestartDatabase(ctx context.Context, w io.Writer) error {
@@ -210,7 +220,7 @@ func restartServices(ctx context.Context) error {
 	services := listServicesToRestart()
 	result := utils.WaitAll(services, func(id string) error {
 		if err := utils.Docker.ContainerRestart(ctx, id, container.StopOptions{}); err != nil && !errdefs.IsNotFound(err) {
-			return errors.Errorf("Failed to restart %s: %w", id, err)
+			return errors.Errorf("failed to restart %s: %w", id, err)
 		}
 		return nil
 	})
@@ -230,6 +240,9 @@ func resetRemote(ctx context.Context, version string, config pgconn.Config, fsys
 	}
 	defer conn.Close(context.Background())
 	if err := migration.DropUserSchemas(ctx, conn); err != nil {
+		return err
+	}
+	if err := vault.UpsertVaultSecrets(ctx, utils.Config.Db.Vault, conn); err != nil {
 		return err
 	}
 	return apply.MigrateAndSeed(ctx, version, conn, fsys)

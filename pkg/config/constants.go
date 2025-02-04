@@ -3,21 +3,21 @@ package config
 const (
 	pg13Image = "supabase/postgres:13.3.0"
 	pg14Image = "supabase/postgres:14.1.0.89"
-	Pg15Image = "supabase/postgres:15.1.1.78"
+	Pg15Image = "supabase/postgres:15.8.1.020"
 	// Append to ServiceImages when adding new dependencies below
 	// TODO: try https://github.com/axllent/mailpit
 	kongImage        = "library/kong:2.8.1"
 	inbucketImage    = "inbucket/inbucket:3.0.3"
 	postgrestImage   = "postgrest/postgrest:v12.2.0"
-	pgmetaImage      = "supabase/postgres-meta:v0.83.2"
-	studioImage      = "supabase/studio:20240729-ce42139"
+	pgmetaImage      = "supabase/postgres-meta:v0.84.2"
+	studioImage      = "supabase/studio:20250130-b048539"
 	imageProxyImage  = "darthsim/imgproxy:v3.8.0"
-	edgeRuntimeImage = "supabase/edge-runtime:v1.58.2"
+	edgeRuntimeImage = "supabase/edge-runtime:v1.66.5"
 	vectorImage      = "timberio/vector:0.28.1-alpine"
 	supavisorImage   = "supabase/supavisor:1.1.56"
-	gotrueImage      = "supabase/gotrue:v2.158.1"
-	realtimeImage    = "supabase/realtime:v2.30.34"
-	storageImage     = "supabase/storage-api:v1.10.1"
+	gotrueImage      = "supabase/gotrue:v2.167.0"
+	realtimeImage    = "supabase/realtime:v2.34.7"
+	storageImage     = "supabase/storage-api:v1.14.5"
 	logflareImage    = "supabase/logflare:1.4.0"
 	// Append to JobImages when adding new dependencies below
 	DifferImage  = "supabase/pgadmin-schema-diff:cli-0.0.5"
